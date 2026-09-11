@@ -6,3 +6,4 @@ dist/
 # runtime data, kept in a separate private repository
 site/
 .chromium/
+flake.lock
