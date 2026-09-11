@@ -35,3 +35,36 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["insta"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812",  # missing-trailing-comma: formatter-owned
+  "CPY001",  # SPDX headers are used instead of full copyright headers
+  "D203", "D213",  # docstring style: pick D211/D212 instead (mutually exclusive)
+  "ANN",     # type annotations are not enforced project-wide
+  "T201",    # the CLI reports progress on the console
+  "S603", "S607",  # launching Chromium from PATH is how the tool works
+  "BLE001",  # broad excepts keep the download loop going on single-post failures
+  "S311",    # no cryptographic use of randomness
+  "PLR2004", # magic values in media_type comparisons read fine
+  "E731",    # a lambda as an event handler is fine
+  "PERF203", # per-post try/except in the download loop is intended
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "S101",    # asserts are the whole point of a test
+  "D",       # docstrings enforced on insta/, not on tests
+  "INP001",  # test packages need no __init__.py
+  "ARG",     # pytest fixtures are injected as (often unused) arguments
+  "PLR2004", # literal expectations are fine in tests
+  "EM101", "TRY003",  # inline exception messages are fine in test doubles
+  "FBT",     # boolean flags on test doubles are fine
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

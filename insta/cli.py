@@ -1,14 +1,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Command line interface: ``uv run insta USERNAME [USERNAME ...]``."""
+
 import argparse
 
 from insta import download, website
 
 
 def main() -> int:
+    """Parse the command line, archive the accounts and rebuild the site."""
     ap = argparse.ArgumentParser(
         prog="insta",
-        description="Download all videos and reels of Instagram accounts and build a local site.")
+        description="Download all videos and reels of Instagram accounts and build a local site.",
+    )
     ap.add_argument("usernames", nargs="*", metavar="USERNAME", help="Instagram account(s) to archive")
     ap.add_argument("--full", action="store_true", help="scan the whole profile, not just until known posts")
     ap.add_argument("--max", type=int, default=None, help="stop after N posts (for testing)")

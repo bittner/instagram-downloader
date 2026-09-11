@@ -6,6 +6,7 @@ one page per account with all its videos, newest first, plus an overview page. A
 optional profile.json per account adds an "About" text and topic filters. The folder
 is a self-contained static site that can be opened locally or deployed as is.
 """
+
 import html
 import json
 from pathlib import Path
@@ -27,11 +28,13 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .card time{color:#666;font-size:.85rem}
 .card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;max-height:9em;overflow:auto}
 .tags{margin-top:.5rem}
-.tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
+.tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
+ padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
 .chips{margin:0 0 1.5rem}
 .chips button{font-size:.85rem;padding:.3rem .9rem;cursor:pointer}
 .chips button.active{background:#222;color:#fff;border-color:#222}
-.account{display:block;padding:1rem;margin:.5rem 0;background:#fff;border:1px solid #ddd;border-radius:8px}
+.account{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 1.5rem;padding:1rem;margin:.5rem 0;
+ background:#fff;border:1px solid #ddd;border-radius:8px}
 .account a{color:inherit}
 .account details{display:contents}
 .account summary{cursor:pointer;color:#555;font-size:.9rem}
@@ -52,6 +55,7 @@ apply(location.hash.slice(1)||'all');
 
 
 def build() -> None:
+    """Generate the overview page and one page per account found in site/."""
     SITE.mkdir(exist_ok=True)
     accounts = []
     for account in sorted(p for p in SITE.iterdir() if (p / "index.json").exists()):
@@ -68,43 +72,66 @@ def build() -> None:
 
 
 def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> None:
+    """Write the page of one account with its video cards and topic filter chips."""
     names = {t["id"]: t["name"] for t in profile["topics"]}
     cards = []
     for code, e, topics in posts:
         videos = "".join(
-            f'<video controls preload="metadata" src="{html.escape(f)}"></video>' for f in e["files"])
+            f'<video controls preload="metadata" src="{html.escape(f)}"></video>' for f in e["files"]
+        )
         tags = "".join(f"<span>{html.escape(names[t])}</span>" for t in topics)
         cards.append(
             f'<div class="card" data-topics="{" ".join(topics)}">{videos}<div class="meta">'
             f'<time>{e["date"]}</time> · <a href="https://www.instagram.com/p/{code}/">instagram</a>'
-            f'<p>{html.escape(e["caption"])}</p><div class="tags">{tags}</div></div></div>')
+            f'<p>{html.escape(e["caption"])}</p><div class="tags">{tags}</div></div></div>'
+        )
     chips = ""
     if profile["topics"]:
-        chips = f'<div class="chips"><button data-topic="all">All · {len(posts)}</button>' + "".join(
-            f'<button data-topic="{t["id"]}">{html.escape(t["name"])} · {counts[t["id"]]}</button>'
-            for t in profile["topics"]) + "</div>"
-    page(SITE / name / "index.html", f"@{name}",
-         f'<header><a href="../index.html">← all accounts</a> · <b>@{name}</b> · {len(posts)} videos</header>'
-         f'<main>{chips}<div class="grid">{"".join(cards)}</div></main><script>{JS}</script>')
+        chips = (
+            f'<div class="chips"><button data-topic="all">All · {len(posts)}</button>'
+            + "".join(
+                f'<button data-topic="{t["id"]}">{html.escape(t["name"])} · {counts[t["id"]]}</button>'
+                for t in profile["topics"]
+            )
+            + "</div>"
+        )
+    page(
+        SITE / name / "index.html",
+        f"@{name}",
+        f'<header><a href="../index.html">← all accounts</a> · <b>@{name}</b> · {len(posts)} videos</header>'
+        f'<main>{chips}<div class="grid">{"".join(cards)}</div></main><script>{JS}</script>',
+    )
 
 
 def write_overview(accounts: list) -> None:
+    """Write the overview page listing all accounts with their About box."""
     boxes = []
     for name, n, profile, counts in accounts:
         about = ""
         if profile["about"]:
             topics = "".join(
                 f'<a href="{name}/index.html#{t["id"]}">{html.escape(t["name"])} · {counts[t["id"]]}</a>'
-                for t in profile["topics"])
-            about = (f'<details><summary>About @{name}</summary><p>{html.escape(profile["about"])}</p>'
-                     f'<div class="topics">{topics}</div></details>')
-        boxes.append(f'<div class="account"><a href="{name}/index.html"><b>@{name}</b> · {n} videos</a>{about}</div>')
-    page(SITE / "index.html", "Instagram archive",
-         f'<header><b>Instagram archive</b></header><main>{"".join(boxes)}</main>')
+                for t in profile["topics"]
+            )
+            about = (
+                f"<details><summary>About @{name}</summary><p>{html.escape(profile['about'])}</p>"
+                f'<div class="topics">{topics}</div></details>'
+            )
+        boxes.append(
+            f'<div class="account"><a href="{name}/index.html"><b>@{name}</b> · {n} videos</a>{about}</div>'
+        )
+    page(
+        SITE / "index.html",
+        "Instagram archive",
+        f"<header><b>Instagram archive</b></header><main>{''.join(boxes)}</main>",
+    )
 
 
 def page(path: Path, title: str, body: str) -> None:
+    """Write a complete HTML document with the shared stylesheet."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
-                    f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-                    f'<title>{html.escape(title)}</title><style>{CSS}</style></head><body>{body}</body></html>')
+    path.write_text(
+        f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>{html.escape(title)}</title><style>{CSS}</style></head><body>{body}</body></html>"
+    )

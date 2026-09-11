@@ -7,25 +7,27 @@ a word (``ricicl`` matches ``riciclo`` and ``riciclabile``); a keyword ending in
 matches a whole word only (``api `` matches ``api`` but not ``apice``). A post can have
 several topics.
 """
+
 import json
 import re
 from pathlib import Path
 
 
 def load_profile(account_dir: Path) -> dict:
+    """Read the account's profile.json, or an empty profile if there is none."""
     f = account_dir / "profile.json"
     return json.loads(f.read_text()) if f.exists() else {"about": "", "topics": []}
 
 
 def compile_topics(topics: list[dict]) -> list[tuple[str, re.Pattern]]:
+    """Turn the keyword lists of the topics into one regular expression per topic."""
     out = []
     for t in topics:
         parts = []
-        for k in t["keywords"]:
-            k = k.lower()
-            whole = k.endswith(" ")
-            parts.append(r"(?<!\w)" + re.escape(k.strip()) + (r"(?!\w)" if whole else ""))
-        out.append((t["id"], re.compile("|".join(parts), re.I)))
+        for keyword in t["keywords"]:
+            whole = keyword.endswith(" ")
+            parts.append(r"(?<!\w)" + re.escape(keyword.strip().lower()) + (r"(?!\w)" if whole else ""))
+        out.append((t["id"], re.compile("|".join(parts), re.IGNORECASE)))
     return out
 
 

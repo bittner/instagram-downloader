@@ -8,6 +8,7 @@ and downloads the video files from Instagram's CDN. Only posts containing video
 Known posts are recorded in site/USERNAME/index.json; later runs stop scanning
 once they reach known posts and only download what is new.
 """
+
 import json
 import re
 import shutil
@@ -25,10 +26,10 @@ SITE = ROOT / "site"
 CHROMIUM_PROFILE = ROOT / ".chromium"
 CDP_PORT = 9222
 BASE = "https://www.instagram.com"
-
 MEDIA_MARKERS = re.compile(r'"(?:video_versions|carousel_media|media_type)"')
 
-def archive_all(usernames: list[str], full: bool = False, limit: int | None = None) -> None:
+
+def archive_all(usernames: list[str], *, full: bool = False, limit: int | None = None) -> None:
     """Archive several profiles in one Chromium session, starting Chromium if needed."""
     proc = ensure_chromium()
     with sync_playwright() as p:
@@ -41,7 +42,8 @@ def archive_all(usernames: list[str], full: bool = False, limit: int | None = No
         proc.terminate()
 
 
-def archive(page: Page, profile: str, full: bool, limit: int | None) -> None:
+def archive(page: Page, profile: str, *, full: bool, limit: int | None) -> None:
+    """Download the new videos of one profile and update its index."""
     out = SITE / profile
     out.mkdir(parents=True, exist_ok=True)
     index_file = out / "index.json"
@@ -67,8 +69,13 @@ def archive(page: Page, profile: str, full: bool, limit: int | None) -> None:
         date = datetime.fromtimestamp(item.get("taken_at", 0), timezone.utc)
         stem = f"{date:%Y-%m-%d}_{code}"
         videos = video_urls(item)
-        entry = {"date": f"{date:%Y-%m-%d}", "taken_at": item.get("taken_at", 0),
-                 "video": bool(videos), "files": [], "caption": caption(item)}
+        entry = {
+            "date": f"{date:%Y-%m-%d}",
+            "taken_at": item.get("taken_at", 0),
+            "video": bool(videos),
+            "files": [],
+            "caption": caption(item),
+        }
         if videos:
             print(f"  [{i}/{len(todo)}] {stem} ({len(videos)} video{'s' if len(videos) > 1 else ''})")
             for k, url in enumerate(videos, 1):
@@ -93,12 +100,18 @@ def rebuild_index(out: Path) -> dict[str, dict]:
         item = json.loads(f.read_text())
         code, date = item["code"], f.name[:10]
         files = sorted(p.name for p in out.glob(f"{date}_{code}*.mp4"))
-        index[code] = {"date": date, "taken_at": item.get("taken_at", 0), "video": bool(files),
-                       "files": files, "caption": caption(item)}
+        index[code] = {
+            "date": date,
+            "taken_at": item.get("taken_at", 0),
+            "video": bool(files),
+            "files": files,
+            "caption": caption(item),
+        }
     return index
 
 
 # ---------------------------------------------------------------- browser
+
 
 def ensure_chromium() -> subprocess.Popen | None:
     """Return a Popen if this run started Chromium, None if one was already listening."""
@@ -106,8 +119,13 @@ def ensure_chromium() -> subprocess.Popen | None:
         return None
     exe = shutil.which("chromium") or shutil.which("chromium-browser")
     cmd = [exe] if exe else ["nix", "run", "nixpkgs#chromium", "--"]
-    cmd += [f"--user-data-dir={CHROMIUM_PROFILE}", "--password-store=basic", "--no-first-run",
-            f"--remote-debugging-port={CDP_PORT}", "about:blank"]
+    cmd += [
+        f"--user-data-dir={CHROMIUM_PROFILE}",
+        "--password-store=basic",
+        "--no-first-run",
+        f"--remote-debugging-port={CDP_PORT}",
+        "about:blank",
+    ]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     for _ in range(120):
         time.sleep(1)
@@ -117,14 +135,16 @@ def ensure_chromium() -> subprocess.Popen | None:
 
 
 def cdp_alive() -> bool:
+    """Return whether a Chromium DevTools endpoint answers on the configured port."""
     try:
         requests.get(f"http://localhost:{CDP_PORT}/json/version", timeout=2)
-        return True
     except requests.ConnectionError:
         return False
+    return True
 
 
 def goto(page: Page, url: str) -> None:
+    """Open the URL, waiting for the user to log in first if Instagram asks for it."""
     page.goto(url, wait_until="domcontentloaded")
     if "/accounts/login" in page.url or "/challenge" in page.url:
         print("Log in to Instagram in the Chromium window...")
@@ -137,7 +157,8 @@ def collect_shortcodes(page: Page, profile: str, items: dict, known: set[str]) -
     """Scroll the profile grid, returning shortcodes newest first.
 
     Stops early once a few consecutive scroll batches bring only known posts
-    (a few pinned posts at the top are tolerated by the batch counter)."""
+    (a few pinned posts at the top are tolerated by the batch counter).
+    """
     goto(page, f"{BASE}/{profile}/")
     capture_inline(page, items, profile)
     seen: list[str] = []
@@ -156,6 +177,7 @@ def collect_shortcodes(page: Page, profile: str, items: dict, known: set[str]) -
 
 
 def fetch_post(page: Page, code: str, items: dict) -> dict | None:
+    """Open a post page and return the media item captured from it."""
     goto(page, f"{BASE}/p/{code}/")
     capture_inline(page, items, None)  # the code came from the profile grid; accept any owner
     return items.get(code)
@@ -163,12 +185,15 @@ def fetch_post(page: Page, code: str, items: dict) -> dict | None:
 
 # ---------------------------------------------------------------- data capture
 
+
 def shortcode_of(href: str) -> str | None:
+    """Extract the post shortcode from a post or reel URL."""
     m = re.search(r"/(?:p|reel)/([A-Za-z0-9_-]+)/", href)
     return m.group(1) if m else None
 
 
 def capture_response(r, items: dict, profile: str) -> None:
+    """Harvest media items from an XHR/fetch response of the page."""
     if "instagram.com" not in r.url or r.request.resource_type not in ("xhr", "fetch"):
         return
     try:
@@ -191,11 +216,14 @@ def capture_inline(page: Page, items: dict, profile: str | None) -> None:
 
 
 def parse_json_blobs(text: str):
+    """Yield the JSON documents in a response body, which may be newline-delimited."""
     try:
-        yield json.loads(text)
-        return
+        blob = json.loads(text)
     except ValueError:
-        pass
+        blob = None
+    if blob is not None:
+        yield blob
+        return
     for line in text.splitlines():  # some GraphQL responses are newline-delimited JSON
         try:
             yield json.loads(line)
@@ -228,31 +256,36 @@ def needs_detail(item: dict) -> bool:
         return not item.get("video_versions")
     if mt == 8:
         return not item.get("carousel_media") or any(
-            m.get("media_type") == 2 and not m.get("video_versions") for m in item["carousel_media"])
+            m.get("media_type") == 2 and not m.get("video_versions") for m in item["carousel_media"]
+        )
     return True
 
 
 def video_urls(item: dict) -> list[str]:
+    """Return the best video URL of a post, or one per video slide of a carousel."""
+
     def best(m):
         vv = m.get("video_versions") or []
         return max(vv, key=lambda v: v.get("width", 0))["url"] if vv else None
+
     if item.get("media_type") == 8:
         return [u for m in item.get("carousel_media", []) if (u := best(m))]
     return [u] if (u := best(item)) else []
 
 
 def caption(item: dict) -> str:
+    """Return the caption text of a media item, empty if it has none."""
     c = item.get("caption")
     return (c.get("text") if isinstance(c, dict) else c) or ""
 
 
 def download(url: str, path: Path) -> None:
+    """Stream the URL into the file unless it already exists."""
     if path.exists():
         return
     tmp = path.with_suffix(".part")
     with requests.get(url, stream=True, timeout=120) as r:
         r.raise_for_status()
-        with open(tmp, "wb") as f:
+        with tmp.open("wb") as f:
             shutil.copyfileobj(r.raw, f)
     tmp.rename(path)
-
