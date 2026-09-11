@@ -172,7 +172,8 @@ def test_photos_are_rendered_as_images_and_posts_get_a_type(site):
     (site / "alice" / "index.json").write_text(json.dumps(index))
     website.build()
     account = (site / "alice" / "index.html").read_text()
-    assert '<img src="2024-01-02_pic.jpg" loading="lazy" alt="">' in account
+    assert '<img src="2024-01-02_pic.jpg" loading="lazy" draggable="false" alt="">' in account
+    assert "addEventListener('dragstart',e=>e.preventDefault())" in account
     for kind in ("photo", "video", "carousel"):
         assert f'data-type="{kind}"' in account
     assert '<button data-type="carousel">Carousels · 1</button>' in account

@@ -38,7 +38,7 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .slides{position:relative;overflow:hidden}
 .track{display:flex;transition:transform .35s ease;touch-action:pan-y;cursor:grab}
 .track.dragging{transition:none;cursor:grabbing}
-.track video,.track img{flex:0 0 100%}
+.track video,.track img{flex:0 0 100%;user-select:none;-webkit-user-drag:none}
 .slides button{position:absolute;top:50%;transform:translateY(-50%);width:2.2rem;height:2.2rem;border:0;
  border-radius:50%;background:rgba(255,255,255,.85);color:#222;font-size:1.2rem;cursor:pointer}
 .slides .prev{left:.5rem}.slides .next{right:.5rem}
@@ -86,7 +86,8 @@ document.querySelectorAll('.slides').forEach(s=>{
  track.addEventListener('pointermove',e=>{if(x0===null)return;dx=e.clientX-x0;place(dx);});
  const end=()=>{if(x0===null)return;x0=null;track.classList.remove('dragging');
   Math.abs(dx)>s.clientWidth/6?go(i-Math.sign(dx)):place();};
- track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);});
+ track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);
+ track.addEventListener('dragstart',e=>e.preventDefault());});
 const typeBtns=document.querySelectorAll('.types button');let state={topic:'all',type:'all'};
 function apply(){chips.forEach(b=>b.classList.toggle('active',b.dataset.topic===state.topic));
  typeBtns.forEach(b=>b.classList.toggle('active',b.dataset.type===state.type));
@@ -143,7 +144,7 @@ def medium(filename: str) -> str:
     """The HTML element showing one media file: a video player or an image."""
     if filename.endswith(".mp4"):
         return f'<video controls preload="metadata" src="{html.escape(filename)}"></video>'
-    return f'<img src="{html.escape(filename)}" loading="lazy" alt="">'
+    return f'<img src="{html.escape(filename)}" loading="lazy" draggable="false" alt="">'
 
 
 def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> None:
