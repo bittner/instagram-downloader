@@ -150,3 +150,11 @@ def test_captions_and_about_texts_are_linkified(site):
 def test_card_text_area_keeps_its_styling():
     assert ".card .meta{padding" in website.CSS
     assert ".card p{white-space:pre-wrap" in website.CSS
+
+
+def test_pages_get_the_sticky_header_script(site):
+    website.build()
+    for page in (site / "index.html", site / "alice" / "index.html"):
+        html_text = page.read_text()
+        assert "header.away{transform:translateY(-100%)}" in html_text
+        assert "hdr.classList.toggle('away'" in html_text

@@ -21,7 +21,9 @@ SITE = ROOT / "site"
 
 CSS = """
 body{font-family:system-ui,sans-serif;margin:0;background:#fafafa;color:#222}
-header{padding:1rem 2rem;background:#fff;border-bottom:1px solid #ddd}
+header{padding:1rem 2rem;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:10;
+ transition:transform .25s ease}
+header.away{transform:translateY(-100%)}
 header a{color:inherit;text-decoration:none}
 main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
@@ -221,11 +223,19 @@ def write_overview(accounts: list) -> None:
     )
 
 
+HEADER_JS = """
+const hdr=document.querySelector('header');let lastY=window.scrollY;
+addEventListener('scroll',()=>{const y=window.scrollY;
+ hdr.classList.toggle('away',y>lastY&&y>hdr.offsetHeight);lastY=y;},{passive:true});
+"""
+
+
 def page(path: Path, title: str, body: str) -> None:
     """Write a complete HTML document with the shared stylesheet."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
         f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>{html.escape(title)}</title><style>{CSS}</style></head><body>{body}</body></html>"
+        f"<title>{html.escape(title)}</title><style>{CSS}</style></head>"
+        f"<body>{body}<script>{HEADER_JS}</script></body></html>"
     )
