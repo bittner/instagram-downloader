@@ -32,7 +32,8 @@ header.away{transform:translateY(-100%)}
 header a{color:inherit;text-decoration:none}
 main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
-.card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden}
+.card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;display:flex;
+ flex-direction:column}
 .card video{width:100%;aspect-ratio:9/16;background:#000;display:block}
 .card img{width:100%;display:block;background:#000}
 .slides{position:relative;overflow:hidden}
@@ -44,9 +45,9 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .slides .prev{left:.5rem}.slides .next{right:.5rem}
 .slides .count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;
  padding:.15rem .5rem;border-radius:999px}
-.card .meta{padding:.75rem 1rem}
+.card .meta{padding:.75rem 1rem;flex:1;display:flex;flex-direction:column;min-height:0}
 .card time{color:#666;font-size:.85rem}
-.card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;max-height:9em;overflow:auto}
+.card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;flex:1 1 9em;min-height:0;overflow:auto}
 .card p a,.account details p a{color:#36c;text-decoration:none}
 .tags{margin-top:.5rem}
 .tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
@@ -164,7 +165,7 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
         cards.append(
             f'<div class="card" data-topics="{" ".join(topics)}" data-type="{post_type(e["files"])}">'
             f'{videos}<div class="meta">'
-            f'<time>{e["date"]}</time> · <a href="https://www.instagram.com/p/{code}/">instagram</a>'
+            f'<div class="when"><time>{e["date"]}</time> · <a href="https://www.instagram.com/p/{code}/">instagram</a></div>'
             f'<p>{linkify(e["caption"])}</p><div class="tags">{tags}</div></div></div>'
         )
     counts_by_type = {t: sum(1 for _, e, _ in posts if post_type(e["files"]) == t) for t, _ in TYPES}

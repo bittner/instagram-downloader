@@ -185,3 +185,13 @@ def test_post_type():
     assert website.post_type(["a.mp4"]) == "video"
     assert website.post_type(["a_1.jpg", "a_2.mp4"]) == "carousel"
     assert website.post_type([]) == "photo"
+
+
+def test_caption_box_fills_the_card_and_the_date_line_stays_on_one_line(site):
+    website.build()
+    account = (site / "alice" / "index.html").read_text()
+    assert (
+        '<div class="when"><time>2024-02-01</time> · <a href="https://www.instagram.com/p/new/">instagram</a></div>'
+        in account
+    )
+    assert "font-size:.9rem;flex:1 1 9em;min-height:0;overflow:auto}" in website.CSS
