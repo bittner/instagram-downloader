@@ -70,6 +70,7 @@ warn_unreachable = true
 warn_unused_ignores = true
 
 [tool.pytest.ini_options]
+addopts = "--ignore=tests/browser"
 testpaths = ["tests"]
 
 [tool.ruff]

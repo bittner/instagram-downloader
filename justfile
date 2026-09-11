@@ -57,7 +57,7 @@ types *args:
 
 # Run the test suite and show coverage
 [group('tests')]
-test: pytest coverage
+test: pytest coverage browser
 
 # Run pytest (use -q for silent, -v for verbose, -s for debug, -x to stop on error)
 [group('tests')]
@@ -69,6 +69,12 @@ pytest *args:
 test-pythons *v='3.10 3.11 3.12 3.13 3.14':
     set -e; for py in {{ v }}; do echo "--- Python $py"; UV_PYTHON=$py just pytest -q; done
     just coverage
+
+# Run the browser tests against a Chromium on the PATH or Playwright's own (installed on demand)
+[group('tests')]
+browser *args=('-v'):
+    uv run playwright install chromium
+    uv run --extra=unittest pytest tests/browser {{ args }}
 
 # Display test coverage report
 [group('tests')]
