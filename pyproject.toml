@@ -1,10 +1,10 @@
 [build-system]
-requires = ["uv_build>=0.8,<0.13"]
-build-backend = "uv_build"
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=77", "setuptools_scm>=9"]
 
 [project]
 name = "instagram-offline"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Download videos and reels from Instagram accounts into a browsable local site"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -101,6 +101,7 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.uv.build-backend]
-module-name = "insta"
-module-root = ""
+[tool.setuptools]
+packages = ["insta"]
+
+[tool.setuptools_scm]

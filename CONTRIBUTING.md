@@ -13,3 +13,5 @@ just clean           # remove build artifacts and caches
 ```
 
 Commit messages use an imperative subject line and a descriptive body. The source code is licensed under GPL-3.0-or-later; every module carries an SPDX identifier.
+
+The package version is derived from Git tags by setuptools-scm. To release, publish a GitHub release with a `vX.Y.Z` tag; the release workflow builds and uploads the package to PyPI.

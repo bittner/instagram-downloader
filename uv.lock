@@ -415,7 +415,6 @@ wheels = [
 
 [[package]]
 name = "instagram-offline"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "playwright" },
