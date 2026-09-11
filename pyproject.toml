@@ -31,6 +31,7 @@ classifiers = [
   "Topic :: System :: Archiving",
 ]
 dependencies = [
+  "jinja2>=3.1",
     "playwright>=1.50",
     "requests>=2.32",
 ]
@@ -89,6 +90,7 @@ ignore = [
   "S311",    # no cryptographic use of randomness
   "PLR2004", # magic values in media_type comparisons read fine
   "E731",    # a lambda as an event handler is fine
+  "S704",    # Markup is only built from html.escape()d text within the same function
   "PERF203", # per-post try/except in the download loop is intended
 ]
 
@@ -110,6 +112,6 @@ convention = "google"
 packages = ["insta"]
 
 [tool.setuptools.package-data]
-insta = ["static/*"]
+insta = ["static/*", "templates/*"]
 
 [tool.setuptools_scm]

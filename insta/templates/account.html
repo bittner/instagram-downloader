@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% macro medium(file) -%}
+{% if file.endswith(".mp4") %}<video controls preload="metadata" src="{{ file }}"></video>
+{%- else %}<img src="{{ file }}" loading="lazy" draggable="false" alt="">{% endif %}
+{%- endmacro %}
+{% block body -%}
+<header><div class="bar"><a href="../index.html">← all accounts</a> · <b>@{{ name }}</b> · {{ posts|length }} posts
+<span class="types">
+{%- for type, label, count in types %}<button data-type="{{ type }}">{{ label }} · {{ count }}</button>{% endfor -%}
+</span></div>
+{%- if topics %}<div class="chips"><button data-topic="all">All · {{ posts|length }}</button>
+{%- for t in topics %}<button data-topic="{{ t.id }}">{{ t.name }} · {{ t.count }}</button>{% endfor -%}
+</div>{% endif -%}
+</header>
+<main><div class="grid">
+{%- for post in posts %}
+<div class="card" data-topics="{{ post.topics|join(" ") }}" data-type="{{ post.type }}">
+{%- if post.files|length > 1 -%}
+<div class="slides"><div class="track">{% for file in post.files %}{{ medium(file) }}{% endfor %}</div>
+{{- '' }}<button class="prev" aria-label="previous">&lsaquo;</button><button class="next" aria-label="next">&rsaquo;</button>
+{{- '' }}<span class="count">1 / {{ post.files|length }}</span></div>
+{%- else -%}
+{{ medium(post.files[0]) }}
+{%- endif -%}
+<div class="meta"><div class="when"><time>{{ post.date }}</time> · <a href="https://www.instagram.com/p/{{ post.code }}/">instagram</a></div>
+<p>{{ post.caption }}</p><div class="tags">{% for tag in post.tags %}<span>{{ tag }}</span>{% endfor %}</div></div></div>
+{%- endfor %}
+</div></main>
+{% endblock %}
