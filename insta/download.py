@@ -26,6 +26,7 @@ CHROMIUM_PROFILE = ROOT / ".chromium"
 CDP_PORT = 9222
 BASE = "https://www.instagram.com"
 
+MEDIA_MARKERS = re.compile(r'"(?:video_versions|carousel_media|media_type)"')
 
 def archive_all(usernames: list[str], full: bool = False, limit: int | None = None) -> None:
     """Archive several profiles in one Chromium session, starting Chromium if needed."""
@@ -174,14 +175,17 @@ def capture_response(r, items: dict, profile: str) -> None:
         body = r.text()
     except Exception:
         return
-    if '"video_versions"' in body or '"carousel_media"' in body:
+    if MEDIA_MARKERS.search(body):
         for obj in parse_json_blobs(body):
             harvest(obj, items, profile)
 
 
 def capture_inline(page: Page, items: dict, profile: str | None) -> None:
-    for text in page.eval_on_selector_all('script[type="application/json"]', "els => els.map(e => e.textContent)"):
-        if '"video_versions"' in text or '"carousel_media"' in text:
+    """Harvest media items from the JSON embedded in the page's script tags."""
+    for text in page.eval_on_selector_all(
+        'script[type="application/json"]', "els => els.map(e => e.textContent)"
+    ):
+        if MEDIA_MARKERS.search(text):
             for obj in parse_json_blobs(text):
                 harvest(obj, items, profile)
 
