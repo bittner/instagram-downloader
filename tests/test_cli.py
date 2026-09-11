@@ -21,7 +21,10 @@ def test_usernames_are_archived_then_site_is_built(spies, monkeypatch):
         "sys.argv", ["insta", "alice", "bob", "--full", "--max", "3", "--browser", "/opt/brave"]
     )
     assert cli.main() == 0
-    assert spies["archive"] == ((["alice", "bob"],), {"full": True, "limit": 3, "browser": "/opt/brave"})
+    args, kwargs = spies["archive"]
+    assert args == (["alice", "bob"],)
+    assert callable(kwargs.pop("on_progress"))
+    assert kwargs == {"full": True, "limit": 3, "browser": "/opt/brave"}
     assert spies["build"] is True
 
 
@@ -45,3 +48,25 @@ def test_python_dash_m_runs_the_cli(spies, monkeypatch):
         runpy.run_module("insta", run_name="__main__", alter_sys=True)
     assert exit_info.value.code == 0
     assert spies["build"] is True
+
+
+def test_site_is_rebuilt_during_the_download_at_most_every_interval(monkeypatch):
+    builds = []
+    monkeypatch.setattr(website, "build", lambda quiet=False: builds.append(quiet))
+    clock = iter([100.0, 100.0, 110.0, 131.0, 131.0])
+    monkeypatch.setattr(cli.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(download, "archive_all", lambda *a, **k: [k["on_progress"]() for _ in range(3)])
+    monkeypatch.setattr("sys.argv", ["insta", "alice"])
+    assert cli.main() == 0
+    assert builds == [True, True, False]  # two quiet rebuilds while downloading, one final full build
+
+
+def test_throttled_runs_at_most_once_per_interval(monkeypatch):
+    clock = iter([0.0, 0.0, 5.0, 31.0, 31.0])
+    monkeypatch.setattr(cli.time, "monotonic", lambda: next(clock))
+    runs = []
+    run = cli.throttled(lambda: runs.append(1), 30)
+    run()
+    run()
+    run()
+    assert len(runs) == 2

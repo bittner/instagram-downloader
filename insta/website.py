@@ -74,7 +74,7 @@ apply(location.hash.slice(1)||'all');
 """
 
 
-def build() -> None:
+def build(*, quiet: bool = False) -> None:
     """Generate the overview page and one page per account found in site/."""
     SITE.mkdir(exist_ok=True)
     accounts = []
@@ -88,7 +88,8 @@ def build() -> None:
         accounts.append((account.name, len(posts), profile, counts))
         write_account_page(account.name, posts, profile, counts)
     write_overview(accounts)
-    print(f"site: {len(accounts)} accounts -> {SITE / 'index.html'}")
+    if not quiet:
+        print(f"site: {len(accounts)} accounts -> {SITE / 'index.html'}")
 
 
 def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> None:

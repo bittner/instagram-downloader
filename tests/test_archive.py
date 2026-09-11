@@ -147,6 +147,15 @@ def test_archive_keeps_going_after_a_failed_download_and_rescans_next_time(env, 
     assert (env / "alice" / ".complete").exists()
 
 
+def test_archive_reports_progress_after_every_archived_post(env):
+    posts = {"a": item("a"), "b": item("b")}
+    ticks = []
+    download.archive(
+        FakePage(["a", "b"], posts), "alice", full=True, limit=None, on_progress=lambda: ticks.append(1)
+    )
+    assert len(ticks) == 2
+
+
 def test_archive_stops_early_only_after_a_complete_run(env):
     posts = {f"p{i}": item(f"p{i}", taken_at=i) for i in range(20)}
     download.archive(FakePage(list(posts), posts), "alice", full=True, limit=None)
@@ -299,9 +308,5 @@ def test_archive_all_drives_one_page_per_account(monkeypatch):
     monkeypatch.setattr(download, "ensure_browser", lambda _e: proc)
     monkeypatch.setattr(download, "archive", lambda p, u, **kw: calls.append((u, kw)))
     download.archive_all(["alice", "bob"], full=True, limit=2, browser="/bin/chromium")
-    assert calls == [
-        ("alice", {"full": True, "limit": 2}),
-        ("bob", {"full": True, "limit": 2}),
-        "close",
-        "terminate",
-    ]
+    expected = {"full": True, "limit": 2, "on_progress": None}
+    assert calls == [("alice", expected), ("bob", expected), "close", "terminate"]

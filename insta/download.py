@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,22 +34,35 @@ BASE = "https://www.instagram.com"
 MEDIA_MARKERS = re.compile(r'"(?:video_versions|carousel_media|media_type)"')
 
 
+Progress = Callable[[], None]
+
+
 def archive_all(
-    usernames: list[str], *, full: bool = False, limit: int | None = None, browser: str | None = None
+    usernames: list[str],
+    *,
+    full: bool = False,
+    limit: int | None = None,
+    browser: str | None = None,
+    on_progress: Progress | None = None,
 ) -> None:
-    """Archive several profiles in one browser session, starting the browser if needed."""
+    """Archive several profiles in one browser session, starting the browser if needed.
+
+    ``on_progress`` is called after every archived post, e.g. to rebuild the site.
+    """
     proc = ensure_browser(browser)
     with sync_playwright() as p:
         cdp = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
         page = cdp.contexts[0].new_page()
         for username in usernames:
-            archive(page, username, full=full, limit=limit)
+            archive(page, username, full=full, limit=limit, on_progress=on_progress)
         page.close()
     if proc:
         proc.terminate()
 
 
-def archive(page: Page, profile: str, *, full: bool, limit: int | None) -> None:
+def archive(
+    page: Page, profile: str, *, full: bool, limit: int | None, on_progress: Progress | None = None
+) -> None:
     """Download the new videos of one profile and update its index."""
     out = SITE / profile
     out.mkdir(parents=True, exist_ok=True)
@@ -100,6 +114,8 @@ def archive(page: Page, profile: str, *, full: bool, limit: int | None) -> None:
             (out / f"{stem}.json").write_text(json.dumps(item, indent=1, ensure_ascii=False))
         index[code] = entry
         index_file.write_text(json.dumps(index, indent=1, ensure_ascii=False))
+        if on_progress:
+            on_progress()
         time.sleep(PACE["seconds"])
 
     index_file.write_text(json.dumps(index, indent=1, ensure_ascii=False))

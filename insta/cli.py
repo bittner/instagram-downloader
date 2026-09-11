@@ -4,8 +4,12 @@
 """Command line interface: ``uv run insta USERNAME [USERNAME ...]``."""
 
 import argparse
+import time
+from collections.abc import Callable
 
 from insta import download, website
+
+REBUILD_INTERVAL = 30  # seconds between site rebuilds while downloading
 
 
 def main() -> int:
@@ -29,6 +33,25 @@ def main() -> int:
     if not args.site_only:
         if not args.usernames:
             ap.error("USERNAME is required unless --site-only is given")
-        download.archive_all(args.usernames, full=args.full, limit=args.max, browser=args.browser)
+        download.archive_all(
+            args.usernames,
+            full=args.full,
+            limit=args.max,
+            browser=args.browser,
+            on_progress=throttled(lambda: website.build(quiet=True), REBUILD_INTERVAL),
+        )
     website.build()
     return 0
+
+
+def throttled(action: Callable[[], None], interval: float) -> Callable[[], None]:
+    """Return a callable that runs the action at most once per interval of seconds."""
+    last = float("-inf")  # the first call always runs
+
+    def run() -> None:
+        nonlocal last
+        if time.monotonic() - last >= interval:
+            action()
+            last = time.monotonic()
+
+    return run
