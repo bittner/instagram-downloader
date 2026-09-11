@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 # Contributing
 
 Run the tool from a checkout with `uv run insta USERNAME`; uv installs the pinned dependencies on demand. `nix develop` provides a shell with uv, just, Chromium and ffmpeg.

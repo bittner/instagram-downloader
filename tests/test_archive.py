@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
+#
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Exercise the Chromium-driving code against a fake Playwright page."""
 

@@ -1,4 +1,10 @@
-# instagram-offline [![Python package][version]][pypi] [![Vibe coded][badge]][contributing]
+<!--
+SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
+# instagram-offline [![Python package][version]][pypi] [![REUSE status][reuse]][reuse-info] [![Vibe coded][badge]][contributing]
 
 Downloads all videos and reels of one or more Instagram accounts and builds a self-contained static
 site in `site/`, one folder per account. Watch the creators you chose distraction-free, without ads,

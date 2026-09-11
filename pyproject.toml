@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = ["setuptools>=77", "setuptools_scm>=9"]
@@ -8,7 +12,7 @@ dynamic = ["version"]
 description = "Download videos and reels from Instagram accounts into a browsable local site"
 readme = "README.md"
 license = "GPL-3.0-or-later"
-license-files = ["LICENSE"]
+license-files = ["LICENSES/GPL-3.0-or-later.txt"]
 requires-python = ">=3.10, <3.15"
 classifiers = [
   "Development Status :: 4 - Beta",

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Project development tasks
 # Run 'just' or 'just --list' to see all available commands.
 
