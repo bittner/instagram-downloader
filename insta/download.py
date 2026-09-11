@@ -80,27 +80,40 @@ def archive(
     page.on("response", handler)
 
     print(f"@{profile}: {len(index)} posts known")
+    run = Run(page, out, index, items, on_progress)
+    pending = [c for c in load_pending(out) if c not in index]
+    if pending:
+        print(f"  {len(pending)} posts pending from the previous run, fetching them first")
+        run.process_all(pending, fresh=True)
     codes = collect_shortcodes(page, profile, items, known=set() if full else set(index))
     if account:
         write_json(out / "account.json", account_summary(account))
     if limit:
         codes = codes[:limit]
-    todo = [c for c in codes if c not in index or (index[c]["video"] and not index[c]["files"])]
+    todo = [c for c in codes if needs_fetch(index, c) and c not in run.queued]
     print(f"  {len(codes)} posts scanned, {len(todo)} to fetch")
-
-    run = Run(page, out, index, items, on_progress)
-    for i, code in enumerate(todo, 1):
-        if run.process(code, f"[{i}/{len(todo)}]") == "ok":
-            run.retry_deferred()
+    run.process_all(todo)
     run.retry_deferred(final=True)
 
     write_json(index_file, index)
+    run.save_pending()
     page.remove_listener("response", handler)
     if not run.failed and not limit:
         complete.touch()
     n_video = sum(1 for e in index.values() if e["video"])
     failed = f", {run.failed} failed" if run.failed else ""
     print(f"  done: {len(index)} posts known, {n_video} with video{failed}")
+
+
+def needs_fetch(index: dict, code: str) -> bool:
+    """Whether a post is not archived yet: unknown, or known as a video without its files."""
+    return code not in index or (index[code]["video"] and not index[code]["files"])
+
+
+def load_pending(out: Path) -> list[str]:
+    """Read the posts a previous run left to fetch, if it recorded any."""
+    f = out / "pending.json"
+    return json.loads(f.read_text()) if f.exists() else []
 
 
 DEFER_ATTEMPTS = 3  # tries per post and run before it is left for the next run
@@ -116,10 +129,29 @@ class Run:
     index: dict[str, dict]
     items: dict[str, dict]
     on_progress: Progress | None = None
+    queued: list[str] = field(default_factory=list)
     deferred: list[str] = field(default_factory=list)
     attempts: dict[str, int] = field(default_factory=dict)
     last_try: dict[str, float] = field(default_factory=dict)
     failed: int = 0
+
+    def process_all(self, codes: list[str], *, fresh: bool = False) -> None:
+        """Archive the posts in order, retrying a deferred one after each success."""
+        self.queued += codes
+        self.save_pending()
+        for i, code in enumerate(codes, 1):
+            if self.process(code, f"[{i}/{len(codes)}]", fresh=fresh) == "ok":
+                self.retry_deferred()
+            self.save_pending()
+
+    def save_pending(self) -> None:
+        """Record the queued posts that are not archived yet, so the next run can start with them."""
+        pending = [c for c in dict.fromkeys(self.queued) if needs_fetch(self.index, c)]
+        f = self.out / "pending.json"
+        if pending:
+            write_json(f, pending)
+        else:
+            f.unlink(missing_ok=True)
 
     def process(self, code: str, label: str, *, fresh: bool = False) -> str:
         """Archive one post; returns "ok", "skip" (no data), "deferred" or "failed"."""
@@ -190,7 +222,7 @@ def save_videos(out: Path, stem: str, urls: list[str], entry: dict) -> None:
         entry["files"].append(name)
 
 
-def write_json(path: Path, data: dict) -> None:
+def write_json(path: Path, data: dict | list) -> None:
     """Write data as readable JSON."""
     path.write_text(json.dumps(data, indent=1, ensure_ascii=False))
 

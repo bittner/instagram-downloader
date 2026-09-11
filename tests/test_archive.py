@@ -220,6 +220,40 @@ def test_deferred_posts_wait_for_the_interval_before_a_retry(env, monkeypatch):
     assert attempts == ["cdn/bad", "cdn/a", "cdn/b", "cdn/bad", "cdn/bad"]
 
 
+def test_pending_posts_of_a_previous_run_are_fetched_before_the_scan(env):
+    (env / "alice").mkdir()
+    (env / "alice" / "pending.json").write_text(json.dumps(["p1", "p2"]))
+    posts = {"p1": item("p1", taken_at=300), "p2": item("p2", taken_at=200), "new": item("new", taken_at=100)}
+    page = FakePage(["new", "p1", "p2"], posts)
+    download.archive(page, "alice", full=True, limit=None)
+    assert page.visited[:2] == [f"{BASE}/p/p1/", f"{BASE}/p/p2/"]  # before the profile page
+    assert page.visited.count(f"{BASE}/p/p1/") == 1  # not processed a second time after the scan
+    assert set(json.loads((env / "alice" / "index.json").read_text())) == {"p1", "p2", "new"}
+    assert not (env / "alice" / "pending.json").exists()
+
+
+def test_pending_list_is_kept_current_for_an_interrupted_run(env, monkeypatch):
+    def interrupt_on_second(url, path):
+        if url == "cdn/b":
+            raise KeyboardInterrupt
+        path.write_text(url)
+
+    monkeypatch.setattr(download, "download", interrupt_on_second)
+    posts = {c: item(c, taken_at=t) for c, t in (("a", 300), ("b", 200), ("c", 100))}
+    with pytest.raises(KeyboardInterrupt):
+        download.archive(FakePage(["a", "b", "c"], posts), "alice", full=True, limit=None)
+    assert json.loads((env / "alice" / "pending.json").read_text()) == ["b", "c"]
+
+
+def test_posts_that_failed_stay_pending_for_the_next_run(env, monkeypatch):
+    def broken(url, path):
+        raise download.requests.HTTPError("403")
+
+    monkeypatch.setattr(download, "download", broken)
+    download.archive(FakePage(["x"], {"x": item("x")}), "alice", full=True, limit=None)
+    assert json.loads((env / "alice" / "pending.json").read_text()) == ["x"]
+
+
 def test_archive_stops_early_only_after_a_complete_run(env):
     posts = {f"p{i}": item(f"p{i}", taken_at=i) for i in range(20)}
     download.archive(FakePage(list(posts), posts), "alice", full=True, limit=None)
