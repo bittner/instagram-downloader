@@ -254,6 +254,24 @@ def test_posts_that_failed_stay_pending_for_the_next_run(env, monkeypatch):
     assert json.loads((env / "alice" / "pending.json").read_text()) == ["x"]
 
 
+def test_the_site_is_rebuilt_as_soon_as_the_profile_header_is_captured(env):
+    page = FakePage([], {})
+    original_goto = page.goto
+
+    def goto_and_emit(url, **kw):
+        original_goto(url, **kw)
+        page.emit(
+            FakeResponse(
+                f"{BASE}/api/graphql", json.dumps({"user": {"username": "alice", "biography": "Hi"}})
+            )
+        )
+
+    page.goto = goto_and_emit
+    ticks = []
+    download.archive(page, "alice", full=True, limit=None, on_progress=lambda: ticks.append(1))
+    assert ticks == [1]  # no posts, but one rebuild for the header
+
+
 def test_archive_stops_early_only_after_a_complete_run(env):
     posts = {f"p{i}": item(f"p{i}", taken_at=i) for i in range(20)}
     download.archive(FakePage(list(posts), posts), "alice", full=True, limit=None)

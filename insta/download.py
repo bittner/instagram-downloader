@@ -88,6 +88,8 @@ def archive(
     codes = collect_shortcodes(page, profile, items, known=set() if full else set(index))
     if account:
         write_json(out / "account.json", account_summary(account))
+        if on_progress:
+            on_progress()  # show the profile header on the site right away
     if limit:
         codes = codes[:limit]
     todo = [c for c in codes if needs_fetch(index, c) and c not in run.queued]
