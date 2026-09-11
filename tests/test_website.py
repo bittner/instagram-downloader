@@ -119,3 +119,26 @@ def test_hand_written_profile_wins_over_the_captured_header(site):
 def test_header_line_is_empty_without_a_header():
     assert website.header_line({}) == ""
     assert website.header_line({"followers": 0}) == "0 followers"
+
+
+def test_linkify_links_urls_mentions_and_hashtags_and_escapes_the_rest():
+    out = website.linkify("See https://a.example/x?y=1. Thanks @grs.arch & #Casa2 <b>")
+    assert '<a href="https://a.example/x?y=1">https://a.example/x?y=1</a>.' in out
+    assert '<a href="https://www.instagram.com/grs.arch/">@grs.arch</a> &amp;' in out
+    assert '<a href="https://www.instagram.com/explore/tags/Casa2/">#Casa2</a> &lt;b&gt;' in out
+
+
+def test_linkify_leaves_emails_alone():
+    assert website.linkify("mail me@example.com") == "mail me@example.com"
+
+
+def test_captions_and_about_texts_are_linkified(site):
+    (site / "alice" / "profile.json").write_text(json.dumps(dict(PROFILE, about="Hi @bob")))
+    website.build()
+    assert '<a href="https://www.instagram.com/bob/">@bob</a>' in (site / "index.html").read_text()
+    assert "riciclo &lt;b&gt;" in (site / "alice" / "index.html").read_text()
+
+
+def test_card_text_area_keeps_its_styling():
+    assert ".card .meta{padding" in website.CSS
+    assert ".card p{white-space:pre-wrap" in website.CSS

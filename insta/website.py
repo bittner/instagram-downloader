@@ -11,6 +11,7 @@ is a self-contained static site that can be opened locally or deployed as is.
 
 import html
 import json
+import re
 from pathlib import Path
 
 from insta.topics import classify, compile_topics, hashtag_topics, load_profile
@@ -35,11 +36,11 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .slides .prev{left:.5rem}.slides .next{right:.5rem}
 .slides .count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;
  padding:.15rem .5rem;border-radius:999px}
-.tags{margin-top:.5rem}
 .card .meta{padding:.75rem 1rem}
 .card time{color:#666;font-size:.85rem}
 .card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;max-height:9em;overflow:auto}
 .card p a,.account details p a{color:#36c;text-decoration:none}
+.tags{margin-top:.5rem}
 .tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
  padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
 .chips{margin:0 0 1.5rem}
@@ -124,7 +125,7 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
         cards.append(
             f'<div class="card" data-topics="{" ".join(topics)}">{videos}<div class="meta">'
             f'<time>{e["date"]}</time> · <a href="https://www.instagram.com/p/{code}/">instagram</a>'
-            f'<p>{html.escape(e["caption"])}</p><div class="tags">{tags}</div></div></div>'
+            f'<p>{linkify(e["caption"])}</p><div class="tags">{tags}</div></div></div>'
         )
     chips = ""
     if profile["topics"]:
@@ -142,6 +143,23 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
         f'<header><a href="../index.html">← all accounts</a> · <b>@{name}</b> · {len(posts)} videos</header>'
         f'<main>{chips}<div class="grid">{"".join(cards)}</div></main><script>{JS}</script>',
     )
+
+
+LINKS = re.compile(r"(https?://[^\s<]+[^\s<.,;:!?)])|(?<!\w)@([\w.]+\w)|(?<!\w)#(\w+)")
+
+
+def linkify(text: str) -> str:
+    """Escape text for HTML and turn URLs, @mentions and #hashtags into links, as Instagram does."""
+
+    def link(m: re.Match) -> str:
+        url, user, tag = m.groups()
+        if url:
+            return f'<a href="{url}">{url}</a>'
+        if user:
+            return f'<a href="https://www.instagram.com/{user}/">@{user}</a>'
+        return f'<a href="https://www.instagram.com/explore/tags/{tag}/">#{tag}</a>'
+
+    return LINKS.sub(link, html.escape(text, quote=False))
 
 
 def load_header(account_dir: Path) -> dict:
@@ -175,7 +193,7 @@ def write_overview(accounts: list) -> None:
                 for t in profile["topics"]
             )
             about += (
-                f"<details><summary>About @{name}</summary><p>{html.escape(profile['about'])}</p>"
+                f"<details><summary>About @{name}</summary><p>{linkify(profile['about'])}</p>"
                 f'<div class="topics">{topics}</div></details>'
             )
         boxes.append(
