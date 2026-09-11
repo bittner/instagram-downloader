@@ -22,9 +22,9 @@ requirements:
     uvx uv lock --upgrade
     git diff --color --exit-code uv.lock
 
-# Run all code style checks (format, lint)
+# Run all code style checks (format, lint, pre-commit hooks)
 [group('codestyle')]
-codestyle: format lint
+codestyle: format lint precommit
 
 # Check Python code style (use -- to apply, --diff to preview)
 [group('codestyle')]
@@ -35,6 +35,11 @@ format *args=('--check'):
 [group('codestyle')]
 lint *args=('--statistics'):
     uvx ruff check {{ args }}
+
+# Run the prek pre-commit hooks (file hygiene, commit messages) over all files
+[group('codestyle')]
+precommit *args=('run --all-files'):
+    uvx prek {{ args }}
 
 # Static type checking (use --pretty for error details)
 [group('safety')]

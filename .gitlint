@@ -1,0 +1,9 @@
+[general]
+ignore=body-is-missing
+regex-style-search=True
+
+[title-max-length]
+line-length=72
+
+[body-max-line-length]
+line-length=72

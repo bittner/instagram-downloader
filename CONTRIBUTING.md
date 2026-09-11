@@ -2,12 +2,12 @@
 
 Run the tool from a checkout with `uv run insta USERNAME`; uv installs the pinned dependencies on demand. `nix develop` provides a shell with uv, just, Chromium and ffmpeg.
 
-Development tasks are defined in the `justfile`; run `just` to list them.
+Development tasks are defined in the `justfile`; run `just` to list them. Install the pre-commit hooks once with `uvx prek install`; they check file hygiene and, via gitlint, that commit messages have an imperative subject of at most 72 characters and a body wrapped at 72 characters.
 
 ```sh
 just test            # run the test suite with coverage
 just test-pythons    # run it against all supported Python versions
-just codestyle       # ruff format and lint checks
+just codestyle       # ruff format and lint checks, pre-commit hooks
 just types           # mypy static type checking
 just clean           # remove build artifacts and caches
 ```

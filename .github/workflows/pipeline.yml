@@ -16,6 +16,7 @@ jobs:
         task:
         - format --diff
         - lint --diff
+        - precommit
         - types
       fail-fast: false
     steps:
