@@ -93,7 +93,10 @@ def archive(
     if limit:
         codes = codes[:limit]
     todo = [c for c in codes if needs_fetch(index, c) and c not in run.queued]
-    print(f"  {len(codes)} posts scanned, {len(todo)} to fetch")
+    if not full and not todo:
+        print(f"  {len(codes)} newest posts scanned, all known already, nothing new to fetch")
+    else:
+        print(f"  {len(codes)} posts scanned, {len(todo)} to fetch")
     run.process_all(todo)
     run.retry_deferred(final=True)
 

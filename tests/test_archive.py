@@ -272,13 +272,14 @@ def test_the_site_is_rebuilt_as_soon_as_the_profile_header_is_captured(env):
     assert ticks == [1]  # no posts, but one rebuild for the header
 
 
-def test_archive_stops_early_only_after_a_complete_run(env):
+def test_archive_stops_early_only_after_a_complete_run(env, capsys):
     posts = {f"p{i}": item(f"p{i}", taken_at=i) for i in range(20)}
     download.archive(FakePage(list(posts), posts), "alice", full=True, limit=None)
     assert (env / "alice" / ".complete").exists()
     page = FakePage(list(posts), posts)
     download.archive(page, "alice", full=False, limit=None)
     assert page.scrolls < 10  # stopped early, everything was known
+    assert "newest posts scanned, all known already" in capsys.readouterr().out
 
 
 def test_fetch_post_treats_a_failing_page_as_no_data(env, capsys):
