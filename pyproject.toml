@@ -12,7 +12,7 @@ dynamic = ["version"]
 description = "Download videos and reels from Instagram accounts into a browsable local site"
 readme = "README.md"
 license = "GPL-3.0-or-later"
-license-files = ["LICENSES/GPL-3.0-or-later.txt"]
+license-files = ["LICENSE"]
 requires-python = ">=3.10, <3.15"
 classifiers = [
   "Development Status :: 4 - Beta",
