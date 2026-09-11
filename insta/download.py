@@ -67,6 +67,8 @@ def archive(
     """Download the new videos of one profile and update its index."""
     out = SITE / profile
     out.mkdir(parents=True, exist_ok=True)
+    for part in out.glob("*.part"):  # left over from an interrupted download
+        part.unlink()
     index_file = out / "index.json"
     complete = out / ".complete"  # present once a run has gone through the whole profile
     full = full or not complete.exists()

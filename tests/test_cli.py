@@ -70,3 +70,14 @@ def test_throttled_runs_at_most_once_per_interval(monkeypatch):
     run()
     run()
     assert len(runs) == 2
+
+
+def test_interrupting_the_download_still_builds_the_site(spies, monkeypatch, capsys):
+    def interrupted(*_a, **_k):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(download, "archive_all", interrupted)
+    monkeypatch.setattr("sys.argv", ["insta", "alice"])
+    assert cli.main() == 130
+    assert spies["build"] is True
+    assert "rerun to resume" in capsys.readouterr().err

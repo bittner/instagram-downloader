@@ -4,6 +4,7 @@
 """Command line interface: ``uv run insta USERNAME [USERNAME ...]``."""
 
 import argparse
+import sys
 import time
 from collections.abc import Callable
 
@@ -30,18 +31,23 @@ def main() -> int:
         + " found on the PATH, then Nix, then Playwright's own Chromium",
     )
     args = ap.parse_args()
+    status = 0
     if not args.site_only:
         if not args.usernames:
             ap.error("USERNAME is required unless --site-only is given")
-        download.archive_all(
-            args.usernames,
-            full=args.full,
-            limit=args.max,
-            browser=args.browser,
-            on_progress=throttled(lambda: website.build(quiet=True), REBUILD_INTERVAL),
-        )
+        try:
+            download.archive_all(
+                args.usernames,
+                full=args.full,
+                limit=args.max,
+                browser=args.browser,
+                on_progress=throttled(lambda: website.build(quiet=True), REBUILD_INTERVAL),
+            )
+        except KeyboardInterrupt:
+            print("\nInterrupted; the posts archived so far are kept, rerun to resume.", file=sys.stderr)
+            status = 130
     website.build()
-    return 0
+    return status
 
 
 def throttled(action: Callable[[], None], interval: float) -> Callable[[], None]:

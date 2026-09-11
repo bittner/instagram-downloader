@@ -153,6 +153,13 @@ def test_archive_keeps_going_after_a_failed_download_and_rescans_next_time(env, 
     assert (env / "alice" / ".complete").exists()
 
 
+def test_archive_removes_leftover_partial_downloads(env):
+    (env / "alice").mkdir()
+    (env / "alice" / "2024-01-01_x.part").write_bytes(b"trunc")
+    download.archive(FakePage([], {}), "alice", full=True, limit=None)
+    assert not (env / "alice" / "2024-01-01_x.part").exists()
+
+
 def test_archive_reports_progress_after_every_archived_post(env):
     posts = {"a": item("a"), "b": item("b")}
     ticks = []
