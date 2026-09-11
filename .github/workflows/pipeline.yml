@@ -21,6 +21,7 @@ jobs:
         - format --diff
         - lint --diff
         - precommit
+        - reuse
         - types
       fail-fast: false
     steps:

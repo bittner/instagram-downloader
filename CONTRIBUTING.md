@@ -13,11 +13,11 @@ Development tasks are defined in the `justfile`; run `just` to list them. Instal
 ```sh
 just test            # run the test suite with coverage
 just test-pythons    # run it against all supported Python versions
-just codestyle       # ruff format and lint checks, pre-commit hooks
+just codestyle       # ruff format and lint checks, pre-commit hooks, REUSE compliance
 just types           # mypy static type checking
 just clean           # remove build artifacts and caches
 ```
 
-Commit messages use an imperative subject line and a descriptive body. The source code is licensed under GPL-3.0-or-later; every module carries an SPDX identifier.
+Commit messages use an imperative subject line and a descriptive body. The project follows the [REUSE](https://reuse.software/) specification: every file carries SPDX copyright and license tags, and `just reuse` checks them.
 
 The package version is derived from Git tags by setuptools-scm. To release, publish a GitHub release with a `vX.Y.Z` tag; the release workflow builds and uploads the package to PyPI.

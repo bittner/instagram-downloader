@@ -26,9 +26,9 @@ requirements:
     uvx uv lock --upgrade
     git diff --color --exit-code uv.lock
 
-# Run all code style checks (format, lint, pre-commit hooks)
+# Run all code style checks (format, lint, pre-commit hooks, REUSE compliance)
 [group('codestyle')]
-codestyle: format lint precommit
+codestyle: format lint precommit reuse
 
 # Check Python code style (use -- to apply, --diff to preview)
 [group('codestyle')]
@@ -44,6 +44,11 @@ lint *args=('--statistics'):
 [group('codestyle')]
 precommit *args=('run --all-files'):
     uvx prek {{ args }}
+
+# Check REUSE compliance of copyright and license information (use spdx for an SBOM)
+[group('codestyle')]
+reuse *args=('lint'):
+    uvx 'reuse[charset-normalizer]' {{ args }}
 
 # Static type checking (use --pretty for error details)
 [group('safety')]
