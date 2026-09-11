@@ -162,6 +162,57 @@ def test_archive_reports_progress_after_every_archived_post(env):
     assert len(ticks) == 2
 
 
+def test_transient_errors_are_deferred_and_retried_with_a_fresh_page(env, monkeypatch, capsys):
+    calls = []
+
+    def flaky(url, path):
+        calls.append(url)
+        if url == "cdn/bad" and calls.count("cdn/bad") == 1:
+            raise download.TransientError("HTTP 500")
+        path.write_text(url)
+
+    monkeypatch.setattr(download, "download", flaky)
+    monkeypatch.setattr(download.time, "monotonic", lambda: 1000.0 + 100 * len(calls))  # time passes per call
+    posts = {"bad": item("bad", taken_at=300), "good": item("good", taken_at=200)}
+    page = FakePage(["bad", "good"], posts)
+    download.archive(page, "alice", full=True, limit=None)
+    index = json.loads((env / "alice" / "index.json").read_text())
+    assert set(index) == {"good", "bad"}  # the deferred post was retried after the next success
+    assert page.visited.count(f"{BASE}/p/bad/") == 2  # reloaded for fresh video URLs on the retry
+    assert "deferring the post" in capsys.readouterr().err
+    assert (env / "alice" / ".complete").exists()
+
+
+def test_deferred_posts_are_given_up_after_the_last_attempt(env, monkeypatch, capsys):
+    def broken(url, path):
+        raise download.TransientError("HTTP 500")
+
+    monkeypatch.setattr(download, "download", broken)
+    monkeypatch.setattr(download.time, "monotonic", lambda: 0.0)
+    download.archive(FakePage(["bad"], {"bad": item("bad")}), "alice", full=True, limit=None)
+    err = capsys.readouterr().err
+    assert err.count("deferring the post") == download.DEFER_ATTEMPTS - 1
+    assert "giving up on this post for this run" in err
+    assert "bad" not in json.loads((env / "alice" / "index.json").read_text())
+    assert not (env / "alice" / ".complete").exists()
+
+
+def test_deferred_posts_wait_for_the_interval_before_a_retry(env, monkeypatch):
+    attempts = []
+
+    def flaky(url, path):
+        attempts.append(url)
+        if url == "cdn/bad":
+            raise download.TransientError("HTTP 500")
+        path.write_text(url)
+
+    monkeypatch.setattr(download, "download", flaky)
+    monkeypatch.setattr(download.time, "monotonic", lambda: 0.0)  # no time passes: retries only at the end
+    posts = {"bad": item("bad", taken_at=300), "a": item("a", taken_at=200), "b": item("b", taken_at=100)}
+    download.archive(FakePage(["bad", "a", "b"], posts), "alice", full=True, limit=None)
+    assert attempts == ["cdn/bad", "cdn/a", "cdn/b", "cdn/bad", "cdn/bad"]
+
+
 def test_archive_stops_early_only_after_a_complete_run(env):
     posts = {f"p{i}": item(f"p{i}", taken_at=i) for i in range(20)}
     download.archive(FakePage(list(posts), posts), "alice", full=True, limit=None)

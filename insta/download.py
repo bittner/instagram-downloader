@@ -19,6 +19,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -85,14 +86,47 @@ def archive(
     todo = [c for c in codes if c not in index or (index[c]["video"] and not index[c]["files"])]
     print(f"  {len(codes)} posts scanned, {len(todo)} to fetch")
 
-    failed = 0
+    run = Run(page, out, index, items, on_progress)
     for i, code in enumerate(todo, 1):
-        item = items.get(code)
+        if run.process(code, f"[{i}/{len(todo)}]") == "ok":
+            run.retry_deferred()
+    run.retry_deferred(final=True)
+
+    write_json(index_file, index)
+    page.remove_listener("response", handler)
+    if not run.failed and not limit:
+        complete.touch()
+    n_video = sum(1 for e in index.values() if e["video"])
+    failed = f", {run.failed} failed" if run.failed else ""
+    print(f"  done: {len(index)} posts known, {n_video} with video{failed}")
+
+
+DEFER_ATTEMPTS = 3  # tries per post and run before it is left for the next run
+DEFER_INTERVAL = 60.0  # seconds before a deferred post is tried again
+
+
+@dataclass
+class Run:
+    """The state of archiving one profile: the posts done, deferred and failed."""
+
+    page: Page
+    out: Path
+    index: dict[str, dict]
+    items: dict[str, dict]
+    on_progress: Progress | None = None
+    deferred: list[str] = field(default_factory=list)
+    attempts: dict[str, int] = field(default_factory=dict)
+    last_try: dict[str, float] = field(default_factory=dict)
+    failed: int = 0
+
+    def process(self, code: str, label: str, *, fresh: bool = False) -> str:
+        """Archive one post; returns "ok", "skip" (no data), "deferred" or "failed"."""
+        item = None if fresh else self.items.get(code)
         if item is None or needs_detail(item):
-            item = fetch_post(page, code, items)
+            item = fetch_post(self.page, code, self.items)
         if item is None:
-            print(f"  [{i}/{len(todo)}] {code}: no data", file=sys.stderr)
-            continue
+            print(f"  {label} {code}: no data", file=sys.stderr)
+            return "skip"
         date = datetime.fromtimestamp(item.get("taken_at", 0), timezone.utc)
         stem = f"{date:%Y-%m-%d}_{code}"
         videos = video_urls(item)
@@ -104,38 +138,54 @@ def archive(
             "caption": caption(item),
         }
         if videos:
-            print(f"  [{i}/{len(todo)}] {stem} ({len(videos)} video{'s' if len(videos) > 1 else ''})")
-            if not save_videos(out, stem, videos, entry):
-                failed += 1
-                continue
-            write_json(out / f"{stem}.json", item)
-        index[code] = entry
-        write_json(index_file, index)
-        if on_progress:
-            on_progress()
+            print(f"  {label} {stem} ({len(videos)} video{'s' if len(videos) > 1 else ''})")
+            try:
+                save_videos(self.out, stem, videos, entry)
+            except TransientError as e:
+                return self.defer(code, str(e))
+            except requests.RequestException as e:
+                print(f"  failed, will retry on the next run: {e}", file=sys.stderr)
+                self.failed += 1
+                return "failed"
+            write_json(self.out / f"{stem}.json", item)
+        self.index[code] = entry
+        write_json(self.out / "index.json", self.index)
+        if self.on_progress:
+            self.on_progress()
         time.sleep(PACE["seconds"])
+        return "ok"
 
-    write_json(index_file, index)
-    page.remove_listener("response", handler)
-    if not failed and not limit:
-        complete.touch()
-    n_video = sum(1 for e in index.values() if e["video"])
-    print(
-        f"  done: {len(index)} posts known, {n_video} with video" + (f", {failed} failed" if failed else "")
-    )
+    def defer(self, code: str, reason: str) -> str:
+        """Queue a post for a later attempt within this run, or give up on it for this run."""
+        self.attempts[code] = self.attempts.get(code, 0) + 1
+        self.last_try[code] = time.monotonic()
+        if self.attempts[code] >= DEFER_ATTEMPTS:
+            print(f"  {reason}, giving up on this post for this run", file=sys.stderr)
+            self.failed += 1
+            return "failed"
+        print(f"  {reason}, deferring the post", file=sys.stderr)
+        self.deferred.append(code)
+        return "deferred"
+
+    def retry_deferred(self, *, final: bool = False) -> None:
+        """Retry one deferred post that has waited long enough, or all of them at the end of the run."""
+        while self.deferred:
+            due = [c for c in self.deferred if final or time.monotonic() - self.last_try[c] >= DEFER_INTERVAL]
+            if not due:
+                return
+            code = due[0]
+            self.deferred.remove(code)
+            self.process(code, "[retry]", fresh=True)  # a reloaded page brings fresh video URLs
+            if not final:
+                return
 
 
-def save_videos(out: Path, stem: str, urls: list[str], entry: dict) -> bool:
-    """Download a post's videos into the account folder; False if the post has to wait for the next run."""
-    try:
-        for k, url in enumerate(urls, 1):
-            name = f"{stem}.mp4" if len(urls) == 1 else f"{stem}_{k}.mp4"
-            download(url, out / name)
-            entry["files"].append(name)
-    except requests.RequestException as e:
-        print(f"  failed, will retry on the next run: {e}", file=sys.stderr)
-        return False
-    return True
+def save_videos(out: Path, stem: str, urls: list[str], entry: dict) -> None:
+    """Download a post's videos into the account folder, recording each file in the index entry."""
+    for k, url in enumerate(urls, 1):
+        name = f"{stem}.mp4" if len(urls) == 1 else f"{stem}_{k}.mp4"
+        download(url, out / name)
+        entry["files"].append(name)
 
 
 def write_json(path: Path, data: dict) -> None:
@@ -439,38 +489,58 @@ def caption(item: dict) -> str:
     return (c.get("text") if isinstance(c, dict) else c) or ""
 
 
-RETRY_STATUS = (429, 500, 502, 503, 504)
-RETRY_ATTEMPTS = 6
+RETRY_ATTEMPTS = 6  # back-offs on rate limiting before a post is deferred
+QUICK_RETRIES = 1  # immediate retries on server errors and dropped connections before deferring
+QUICK_WAIT = 5
 PACE = {"seconds": 1.5, "max": 30.0}  # pause between posts; doubled whenever the CDN throttles us
+
+
+class TransientError(Exception):
+    """A download failed in a way that is worth retrying later in the same run."""
 
 
 def download(url: str, path: Path) -> None:
     """Stream the URL into the file unless it already exists.
 
-    Rate limiting and server errors are retried with an exponential back-off,
-    honouring a Retry-After header when the CDN sends one.
+    Rate limiting is retried with an exponential back-off, honouring a Retry-After
+    header when the CDN sends one. Server errors and dropped connections get one
+    quick retry; after that a TransientError leaves the post for a later attempt.
     """
     if path.exists():
         return
     tmp = path.with_suffix(".part")
     for attempt in range(RETRY_ATTEMPTS):
-        last = attempt == RETRY_ATTEMPTS - 1
         try:
             with requests.get(url, stream=True, timeout=120) as r:
-                if r.status_code in RETRY_STATUS and not last:
-                    wait = retry_after(r.headers.get("Retry-After")) or 30 * 2**attempt
-                    slow_down(f"HTTP {r.status_code}", wait)
+                if r.status_code == 429:
+                    if attempt == RETRY_ATTEMPTS - 1:
+                        reason = "HTTP 429 persists"
+                        raise TransientError(reason)
+                    slow_down("HTTP 429", retry_after(r.headers.get("Retry-After")) or 30 * 2**attempt)
+                    continue
+                if r.status_code >= 500:
+                    reason = f"HTTP {r.status_code}"
+                    if attempt >= QUICK_RETRIES:
+                        raise TransientError(reason)
+                    quick_retry(reason)
                     continue
                 r.raise_for_status()
                 with tmp.open("wb") as f:
                     shutil.copyfileobj(r.raw, f)
         except (requests.ConnectionError, requests.Timeout) as e:
-            if last:
-                raise
-            slow_down(type(e).__name__, 30 * 2**attempt)
+            reason = type(e).__name__
+            if attempt >= QUICK_RETRIES:
+                raise TransientError(reason) from e
+            quick_retry(reason)
             continue
         tmp.rename(path)
         return
+
+
+def quick_retry(reason: str) -> None:
+    """Wait a moment before retrying once."""
+    print(f"  {reason}, retrying in {QUICK_WAIT}s", file=sys.stderr)
+    time.sleep(QUICK_WAIT)
 
 
 def slow_down(reason: str, wait: int) -> None:

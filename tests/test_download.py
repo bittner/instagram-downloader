@@ -135,7 +135,7 @@ def test_download_streams_to_file_and_skips_existing(tmp_path, monkeypatch):
 
 
 def test_download_backs_off_on_rate_limiting_and_honours_retry_after(tmp_path, monkeypatch, capsys):
-    responses = iter([Response(429, {"Retry-After": "7"}), Response(503), Response()])
+    responses = iter([Response(429, {"Retry-After": "7"}), Response(429), Response()])
     waits = []
     monkeypatch.setattr(download.requests, "get", lambda *a, **k: next(responses))
     monkeypatch.setattr(download.time, "sleep", waits.append)
@@ -145,14 +145,39 @@ def test_download_backs_off_on_rate_limiting_and_honours_retry_after(tmp_path, m
     assert "HTTP 429" in capsys.readouterr().err
 
 
-def test_download_gives_up_after_the_last_attempt(tmp_path, monkeypatch):
+def test_download_defers_when_rate_limiting_persists(tmp_path, monkeypatch):
     monkeypatch.setattr(download.requests, "get", lambda *a, **k: Response(429, {"Retry-After": "soon"}))
     waits = []
     monkeypatch.setattr(download.time, "sleep", waits.append)
-    with pytest.raises(download.requests.HTTPError):
+    with pytest.raises(download.TransientError, match="429 persists"):
         download.download("http://x", tmp_path / "v.mp4")
     assert len(waits) == download.RETRY_ATTEMPTS - 1
     assert not (tmp_path / "v.mp4").exists()
+
+
+def test_download_retries_a_server_error_once_then_defers(tmp_path, monkeypatch, capsys):
+    responses = iter([Response(500), Response(502)])
+    waits = []
+    monkeypatch.setattr(download.requests, "get", lambda *a, **k: next(responses))
+    monkeypatch.setattr(download.time, "sleep", waits.append)
+    with pytest.raises(download.TransientError, match="HTTP 502"):
+        download.download("http://x", tmp_path / "v.mp4")
+    assert waits == [download.QUICK_WAIT]
+    assert "HTTP 500, retrying" in capsys.readouterr().err
+
+
+def test_download_recovers_from_a_single_server_error(tmp_path, monkeypatch):
+    responses = iter([Response(503), Response()])
+    monkeypatch.setattr(download.requests, "get", lambda *a, **k: next(responses))
+    monkeypatch.setattr(download.time, "sleep", lambda _s: None)
+    download.download("http://x", tmp_path / "v.mp4")
+    assert (tmp_path / "v.mp4").exists()
+
+
+def test_download_raises_client_errors_unchanged(tmp_path, monkeypatch):
+    monkeypatch.setattr(download.requests, "get", lambda *a, **k: Response(404))
+    with pytest.raises(download.requests.HTTPError):
+        download.download("http://x", tmp_path / "v.mp4")
 
 
 def test_retry_after_parses_numbers_only():
@@ -167,7 +192,7 @@ def default_pace(monkeypatch):
     monkeypatch.setitem(download.PACE, "seconds", 1.5)
 
 
-def test_download_retries_connection_errors_and_slows_the_pace(tmp_path, monkeypatch):
+def test_download_retries_a_connection_error_once_then_defers(tmp_path, monkeypatch):
     outcomes = iter([download.requests.ConnectionError(), download.requests.Timeout(), Response()])
 
     def get(*_a, **_k):
@@ -179,20 +204,10 @@ def test_download_retries_connection_errors_and_slows_the_pace(tmp_path, monkeyp
     monkeypatch.setattr(download.requests, "get", get)
     waits = []
     monkeypatch.setattr(download.time, "sleep", waits.append)
-    download.download("http://x", tmp_path / "v.mp4")
-    assert (tmp_path / "v.mp4").exists()
-    assert waits == [30, 60]
-    assert download.PACE["seconds"] == 6.0  # doubled twice, from 1.5
-
-
-def test_download_reraises_a_connection_error_on_the_last_attempt(tmp_path, monkeypatch):
-    def refuse(*_a, **_k):
-        raise download.requests.ConnectionError
-
-    monkeypatch.setattr(download.requests, "get", refuse)
-    monkeypatch.setattr(download.time, "sleep", lambda _s: None)
-    with pytest.raises(download.requests.ConnectionError):
+    with pytest.raises(download.TransientError, match="Timeout"):
         download.download("http://x", tmp_path / "v.mp4")
+    assert waits == [download.QUICK_WAIT]
+    assert download.PACE["seconds"] == 1.5  # connection trouble is not rate limiting
 
 
 def test_pace_never_exceeds_its_maximum(monkeypatch):
@@ -252,14 +267,9 @@ def test_capture_response_captures_the_account_once(monkeypatch):
     assert account["biography"] == "Hi\nthere"  # the first capture stands
 
 
-def test_save_videos_reports_a_failed_post(tmp_path, monkeypatch, capsys):
-    def flaky(url, path):
-        if "bad" in url:
-            raise download.requests.HTTPError("429")
-        path.write_text(url)
-
-    monkeypatch.setattr(download, "download", flaky)
+def test_save_videos_records_each_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(download, "download", lambda url, path: path.write_text(url))
     entry = {"files": []}
-    assert download.save_videos(tmp_path, "2024-01-01_x", ["ok1", "bad"], entry) is False
-    assert "will retry" in capsys.readouterr().err
-    assert download.save_videos(tmp_path, "2024-01-01_y", ["ok2"], entry) is True
+    download.save_videos(tmp_path, "2024-01-01_x", ["a", "b"], entry)
+    download.save_videos(tmp_path, "2024-01-01_y", ["c"], entry)
+    assert entry["files"] == ["2024-01-01_x_1.mp4", "2024-01-01_x_2.mp4", "2024-01-01_y.mp4"]
