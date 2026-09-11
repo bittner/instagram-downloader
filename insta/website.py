@@ -24,16 +24,15 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
 .card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden}
 .card video{width:100%;aspect-ratio:9/16;background:#000;display:block}
-.slides{position:relative}
-.slides video[hidden]{display:none}
+.slides{position:relative;overflow:hidden}
+.track{display:flex;transition:transform .35s ease;touch-action:pan-y;cursor:grab}
+.track.dragging{transition:none;cursor:grabbing}
+.track video{flex:0 0 100%}
 .slides button{position:absolute;top:50%;transform:translateY(-50%);width:2.2rem;height:2.2rem;border:0;
  border-radius:50%;background:rgba(255,255,255,.85);color:#222;font-size:1.2rem;cursor:pointer}
 .slides .prev{left:.5rem}.slides .next{right:.5rem}
 .slides .count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;
  padding:.15rem .5rem;border-radius:999px}
-.card .meta{padding:.75rem 1rem}
-.card time{color:#666;font-size:.85rem}
-.card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;max-height:9em;overflow:auto}
 .tags{margin-top:.5rem}
 .tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
  padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
@@ -53,10 +52,18 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 
 JS = """
 const chips=document.querySelectorAll('.chips button'),cards=document.querySelectorAll('.card');
-document.querySelectorAll('.slides').forEach(s=>{const v=s.querySelectorAll('video');let i=0;
- const show=n=>{v[i].pause();v[i].hidden=true;i=(n+v.length)%v.length;v[i].hidden=false;
+document.querySelectorAll('.slides').forEach(s=>{
+ const track=s.querySelector('.track'),v=track.querySelectorAll('video');let i=0,x0=null,dx=0;
+ const place=(px=0)=>track.style.transform=`translateX(calc(${-i*100}% + ${px}px))`;
+ const go=n=>{v[i].pause();i=(n+v.length)%v.length;place();
   s.querySelector('.count').textContent=`${i+1} / ${v.length}`;};
- s.querySelector('.prev').onclick=()=>show(i-1);s.querySelector('.next').onclick=()=>show(i+1);});
+ s.querySelector('.prev').onclick=()=>go(i-1);s.querySelector('.next').onclick=()=>go(i+1);
+ track.addEventListener('pointerdown',e=>{if(e.button)return;x0=e.clientX;dx=0;
+  track.classList.add('dragging');track.setPointerCapture(e.pointerId);});
+ track.addEventListener('pointermove',e=>{if(x0===null)return;dx=e.clientX-x0;place(dx);});
+ const end=()=>{if(x0===null)return;x0=null;track.classList.remove('dragging');
+  Math.abs(dx)>s.clientWidth/6?go(i-Math.sign(dx)):place();};
+ track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);});
 function apply(t){chips.forEach(b=>b.classList.toggle('active',b.dataset.topic===t));
  cards.forEach(c=>c.hidden=t!=='all'&&!(' '+c.dataset.topics+' ').includes(' '+t+' '));
  history.replaceState(null,'',t==='all'?location.pathname:'#'+t);}
@@ -88,12 +95,12 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
     cards = []
     for code, e, topics in posts:
         videos = "".join(
-            f'<video controls preload="metadata" src="{html.escape(f)}"{" hidden" if k else ""}></video>'
-            for k, f in enumerate(e["files"])
+            f'<video controls preload="metadata" src="{html.escape(f)}"></video>' for f in e["files"]
         )
         if len(e["files"]) > 1:
             videos = (
-                f'<div class="slides">{videos}<button class="prev" aria-label="previous">&lsaquo;</button>'
+                f'<div class="slides"><div class="track">{videos}</div>'
+                f'<button class="prev" aria-label="previous">&lsaquo;</button>'
                 f'<button class="next" aria-label="next">&rsaquo;</button>'
                 f'<span class="count">1 / {len(e["files"])}</span></div>'
             )
