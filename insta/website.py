@@ -36,6 +36,10 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .slides .count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;
  padding:.15rem .5rem;border-radius:999px}
 .tags{margin-top:.5rem}
+.card .meta{padding:.75rem 1rem}
+.card time{color:#666;font-size:.85rem}
+.card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;max-height:9em;overflow:auto}
+.card p a,.account details p a{color:#36c;text-decoration:none}
 .tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
  padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
 .chips{margin:0 0 1.5rem}
