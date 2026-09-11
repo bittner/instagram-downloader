@@ -51,7 +51,11 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .account a{color:inherit}
 .account details{display:contents}
 .account summary{cursor:pointer;color:#555;font-size:.9rem}
-.account .header{color:#555;font-size:.9rem}
+.account .header{color:#555;font-size:.9rem;white-space:nowrap}
+.account .name{display:inline-block;max-width:18rem;overflow:hidden;text-overflow:ellipsis;
+ vertical-align:bottom}
+.account .facts{color:#555;font-size:.85rem;margin-top:.5rem}
+.account .facts a{color:#36c;text-decoration:none}
 .account .header a{text-decoration:none;color:#36c}
 .account details p{white-space:pre-wrap}
 .account details p{flex-basis:100%;line-height:1.5;max-width:70em;margin:.75rem 0 0}
@@ -169,14 +173,25 @@ def load_header(account_dir: Path) -> dict:
 
 
 def header_line(header: dict) -> str:
-    """Format name, category, follower count and links of a profile header as HTML."""
-    parts = [html.escape(header[k]) for k in ("full_name", "category") if header.get(k)]
+    """Format the short form of a profile header for the account row: name and follower count."""
+    parts = (
+        [f'<span class="name">{html.escape(header["full_name"])}</span>'] if header.get("full_name") else []
+    )
     if header.get("followers") is not None:
         parts.append(f"{header['followers']:,} followers")
+    return " · ".join(parts)
+
+
+def header_facts(header: dict) -> str:
+    """Format the remaining profile facts for the expandable section: category, counts, links."""
+    parts = [html.escape(header["category"])] if header.get("category") else []
+    parts += [f"{header[k]:,} {k}" for k in ("posts", "following") if header.get(k) is not None]
     parts += [
         f'<a href="{html.escape(u)}">{html.escape(u.removeprefix("https://").rstrip("/"))}</a>'
         for u in header.get("links", [])
     ]
+    if header.get("captured"):
+        parts.append(f"captured {header['captured']}")
     return " · ".join(parts)
 
 
@@ -194,7 +209,7 @@ def write_overview(accounts: list) -> None:
             )
             about += (
                 f"<details><summary>About @{name}</summary><p>{linkify(profile['about'])}</p>"
-                f'<div class="topics">{topics}</div></details>'
+                f'<p class="facts">{header_facts(header)}</p><div class="topics">{topics}</div></details>'
             )
         boxes.append(
             f'<div class="account"><a href="{name}/index.html"><b>@{name}</b> · {n} videos</a>{about}</div>'

@@ -100,9 +100,15 @@ def test_captured_header_provides_the_baseline_about_and_hashtag_topics(site):
     website.build()
     overview = (site / "index.html").read_text()
     account = (site / "alice" / "index.html").read_text()
-    assert '<span class="header">Alice &lt;A&gt; · Creator · 12,345 followers · ' in overview
-    assert '<a href="https://alice.example/">alice.example</a></span><details>' in overview
+    assert (
+        '<span class="header"><span class="name">Alice &lt;A&gt;</span> · 12,345 followers</span><details>'
+        in overview
+    )
     assert "<p>Bio line 1\nline 2</p>" in overview
+    assert (
+        '<p class="facts">Creator · 3 posts · 1 following · <a href="https://alice.example/">alice.example</a>'
+        in overview
+    )
     assert 'data-topic="riciclo">#riciclo · 2</button>' in account
 
 
@@ -116,9 +122,11 @@ def test_hand_written_profile_wins_over_the_captured_header(site):
     assert "12,345 followers" in overview  # the factual line is shown regardless
 
 
-def test_header_line_is_empty_without_a_header():
+def test_header_line_and_facts_are_empty_without_a_header():
     assert website.header_line({}) == ""
     assert website.header_line({"followers": 0}) == "0 followers"
+    assert website.header_facts({}) == ""
+    assert website.header_facts({"captured": "2026-09-11"}) == "captured 2026-09-11"
 
 
 def test_linkify_links_urls_mentions_and_hashtags_and_escapes_the_rest():
