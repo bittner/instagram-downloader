@@ -41,8 +41,6 @@ This project is not affiliated with, endorsed by or connected to Instagram or Me
 
 You are solely responsible for ensuring that your use of this software complies with all applicable laws, regulations and contractual terms. The authors and contributors accept no liability for any claims, damages or other liability arising from the use of this software or the content obtained with it. Nothing in this document constitutes legal advice.
 
-Licensed under the GNU General Public License v3.0 or later, see [LICENSE](LICENSE).
-
 [version]: https://img.shields.io/pypi/v/instagram-offline?logo=pypi&logoColor=white
 [badge]: https://img.shields.io/badge/vibe_coded-responsibly-ff69b4?logo=claude&logoColor=white
 [pypi]: https://pypi.org/project/instagram-offline/
