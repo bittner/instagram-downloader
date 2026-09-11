@@ -13,7 +13,7 @@ set ignore-comments := true
 
 # Run code style checks and the test suite on all supported Python versions
 [group('lifecycle')]
-all: codestyle types test-pythons clean
+all: codestyle types test-pythons packaging clean
 
 # Remove build artifacts and reports (use -v for verbose, -n for dry-run)
 [group('lifecycle')]
@@ -80,6 +80,11 @@ browser *args=('-v'):
 [group('tests')]
 coverage:
     uvx coverage[toml] report
+
+# Build the distributions and check that they ship everything the package needs
+[group('release')]
+packaging *args=('-v'):
+    uv run --extra=unittest pytest tests/packaging {{ args }}
 
 # Build the Python package and check its metadata renders for PyPI
 [group('release')]

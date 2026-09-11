@@ -149,16 +149,21 @@ def test_captions_and_about_texts_are_linkified(site):
 
 
 def test_card_text_area_keeps_its_styling():
-    assert ".card .meta{padding" in website.CSS
-    assert ".card p{white-space:pre-wrap" in website.CSS
+    css = (website.STATIC / "site.css").read_text()
+    assert ".card .meta{padding" in css
+    assert ".card p{white-space:pre-wrap" in css
 
 
-def test_pages_get_the_sticky_header_script(site):
+def test_pages_link_the_copied_stylesheet_and_script(site):
     website.build()
-    for page in (site / "index.html", site / "alice" / "index.html"):
-        html_text = page.read_text()
-        assert "header.away{transform:translateY(-100%)}" in html_text
-        assert "hdr.classList.toggle('away'" in html_text
+    assert "header.away{transform:translateY(-100%)}" in (site / "site.css").read_text()
+    assert "hdr.classList.toggle('away'" in (site / "site.js").read_text()
+    overview = (site / "index.html").read_text()
+    assert '<link rel="stylesheet" href="site.css">' in overview
+    assert '<script src="site.js"></script>' in overview
+    account = (site / "alice" / "index.html").read_text()
+    assert '<link rel="stylesheet" href="../site.css">' in account
+    assert '<script src="../site.js"></script>' in account
 
 
 def test_filter_chips_sit_in_the_sticky_header(site):
@@ -174,7 +179,7 @@ def test_photos_are_rendered_as_images_and_posts_get_a_type(site):
     website.build()
     account = (site / "alice" / "index.html").read_text()
     assert '<img src="2024-01-02_pic.jpg" loading="lazy" draggable="false" alt="">' in account
-    assert "addEventListener('dragstart',e=>e.preventDefault())" in account
+    assert "addEventListener('dragstart',e=>e.preventDefault())" in (site / "site.js").read_text()
     for kind in ("photo", "video", "carousel"):
         assert f'data-type="{kind}"' in account
     assert '<button data-type="carousel">Carousels · 1</button>' in account
@@ -195,11 +200,14 @@ def test_caption_box_fills_the_card_and_the_date_line_stays_on_one_line(site):
         '<div class="when"><time>2024-02-01</time> · <a href="https://www.instagram.com/p/new/">instagram</a></div>'
         in account
     )
-    assert "font-size:.9rem;flex:1 1 9em;min-height:0;overflow:auto}" in website.CSS
+    assert (
+        "font-size:.9rem;flex:1 1 9em;min-height:0;overflow:auto}"
+        in (website.STATIC / "site.css").read_text()
+    )
 
 
 def test_hidden_cards_are_not_displayed_despite_the_flex_layout():
-    assert ".card[hidden]{display:none}" in website.CSS
+    assert ".card[hidden]{display:none}" in (website.STATIC / "site.css").read_text()
 
 
 def test_only_the_overview_ends_with_a_generated_by_footer(site, monkeypatch):

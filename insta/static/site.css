@@ -1,0 +1,57 @@
+/* SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it> */
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+body{font-family:system-ui,sans-serif;margin:0;background:#fafafa;color:#222}
+header{padding:1rem 2rem 0;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:10;
+ transition:transform .25s ease}
+header .bar{padding-bottom:1rem;display:flex;align-items:center;gap:.3rem}
+header .types{margin-left:auto;display:flex;gap:.3rem}
+header .types button{font-size:.8rem;border:1px solid #ccc;border-radius:999px;padding:.2rem .7rem;
+ background:#f4f4f4;color:#444;cursor:pointer}
+header .types button.active{background:#222;color:#fff;border-color:#222}
+header.away{transform:translateY(-100%)}
+header a{color:inherit;text-decoration:none}
+main{padding:1rem 2rem;max-width:1400px;margin:auto}
+footer{padding:2rem;text-align:center;color:#888;font-size:.85rem}
+footer a{color:#666}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
+.card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;display:flex;
+ flex-direction:column}
+.card[hidden]{display:none}
+.card video{width:100%;aspect-ratio:9/16;background:#000;display:block}
+.card img{width:100%;display:block;background:#000}
+.slides{position:relative;overflow:hidden}
+.track{display:flex;transition:transform .35s ease;touch-action:pan-y;cursor:grab}
+.track.dragging{transition:none;cursor:grabbing}
+.track video,.track img{flex:0 0 100%;user-select:none;-webkit-user-drag:none}
+.slides button{position:absolute;top:50%;transform:translateY(-50%);width:2.2rem;height:2.2rem;border:0;
+ border-radius:50%;background:rgba(255,255,255,.85);color:#222;font-size:1.2rem;cursor:pointer}
+.slides .prev{left:.5rem}.slides .next{right:.5rem}
+.slides .count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;
+ padding:.15rem .5rem;border-radius:999px}
+.card .meta{padding:.75rem 1rem;flex:1;display:flex;flex-direction:column;min-height:0}
+.card time{color:#666;font-size:.85rem}
+.card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;flex:1 1 9em;min-height:0;overflow:auto}
+.card p a,.account details p a{color:#36c;text-decoration:none}
+.tags{margin-top:.5rem}
+.tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
+ padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
+.chips{display:flex;gap:.4rem;overflow-x:auto;padding:0 0 .75rem;margin:0 -2rem;padding-inline:2rem;
+ scrollbar-width:thin}
+.chips button{flex:0 0 auto;font-size:.85rem;padding:.3rem .9rem;margin:0;cursor:pointer}
+.chips button.active{background:#222;color:#fff;border-color:#222}
+.account{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 1.5rem;padding:1rem;margin:.5rem 0;
+ background:#fff;border:1px solid #ddd;border-radius:8px}
+.account a{color:inherit}
+.account details{display:contents}
+.account summary{cursor:pointer;color:#555;font-size:.9rem}
+.account .header{color:#555;font-size:.9rem;white-space:nowrap}
+.account .name{display:inline-block;max-width:18rem;overflow:hidden;text-overflow:ellipsis;
+ vertical-align:bottom}
+.account .facts{color:#555;font-size:.85rem;margin-top:.5rem}
+.account .facts a{color:#36c;text-decoration:none}
+.account .header a{text-decoration:none;color:#36c}
+.account details p{white-space:pre-wrap}
+.account details p{flex-basis:100%;line-height:1.5;max-width:70em;margin:.75rem 0 0}
+.account .topics{flex-basis:100%}
+.account .topics a{display:inline-block;font-size:.85rem;border:1px solid #ccc;border-radius:999px;
+ padding:.15rem .7rem;margin:.2rem .2rem 0 0;background:#f4f4f4;text-decoration:none}

@@ -23,6 +23,7 @@ jobs:
         - precommit
         - reuse
         - types
+        - packaging
       fail-fast: false
     steps:
     - uses: actions/checkout@v6

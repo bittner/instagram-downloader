@@ -13,6 +13,7 @@ Development tasks are defined in the `justfile`; run `just` to list them. Instal
 ```sh
 just test            # run the test suite with coverage, then the browser tests
 just browser         # render the site in headless Chromium and check the filters
+just packaging       # build wheel and sdist and check they ship the static site files
 just test-pythons    # run it against all supported Python versions
 just codestyle       # ruff format and lint checks, pre-commit hooks, REUSE compliance
 just types           # mypy static type checking

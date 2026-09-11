@@ -4,117 +4,35 @@
 """Build the HTML pages of the static website in site/.
 
 Each site/USERNAME/ folder holds the downloaded photos and videos and an index.json; this
-adds one page per account with all its posts, newest first, plus an overview page. An
+adds one page per account with all its posts, newest first, plus an overview page, and
+copies the stylesheet and script from the package's static folder next to them. An
 optional profile.json per account adds an "About" text and topic filters. The folder
 is a self-contained static site that can be opened locally or deployed as is.
 """
 
 import html
 import importlib.metadata
+import importlib.resources
 import json
 import re
+import shutil
 from pathlib import Path
 
 from insta.topics import classify, compile_topics, hashtag_topics, load_profile
 
 ROOT = Path.cwd()
 SITE = ROOT / "site"
+STATIC = importlib.resources.files("insta") / "static"
+ASSETS = ("site.css", "site.js")
 REPOSITORY = "https://github.com/bittner/instagram-offline"
-
-CSS = """
-body{font-family:system-ui,sans-serif;margin:0;background:#fafafa;color:#222}
-header{padding:1rem 2rem 0;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:10;
- transition:transform .25s ease}
-header .bar{padding-bottom:1rem;display:flex;align-items:center;gap:.3rem}
-header .types{margin-left:auto;display:flex;gap:.3rem}
-header .types button{font-size:.8rem;border:1px solid #ccc;border-radius:999px;padding:.2rem .7rem;
- background:#f4f4f4;color:#444;cursor:pointer}
-header .types button.active{background:#222;color:#fff;border-color:#222}
-header.away{transform:translateY(-100%)}
-header a{color:inherit;text-decoration:none}
-main{padding:1rem 2rem;max-width:1400px;margin:auto}
-footer{padding:2rem;text-align:center;color:#888;font-size:.85rem}
-footer a{color:#666}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
-.card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;display:flex;
- flex-direction:column}
-.card[hidden]{display:none}
-.card video{width:100%;aspect-ratio:9/16;background:#000;display:block}
-.card img{width:100%;display:block;background:#000}
-.slides{position:relative;overflow:hidden}
-.track{display:flex;transition:transform .35s ease;touch-action:pan-y;cursor:grab}
-.track.dragging{transition:none;cursor:grabbing}
-.track video,.track img{flex:0 0 100%;user-select:none;-webkit-user-drag:none}
-.slides button{position:absolute;top:50%;transform:translateY(-50%);width:2.2rem;height:2.2rem;border:0;
- border-radius:50%;background:rgba(255,255,255,.85);color:#222;font-size:1.2rem;cursor:pointer}
-.slides .prev{left:.5rem}.slides .next{right:.5rem}
-.slides .count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;
- padding:.15rem .5rem;border-radius:999px}
-.card .meta{padding:.75rem 1rem;flex:1;display:flex;flex-direction:column;min-height:0}
-.card time{color:#666;font-size:.85rem}
-.card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;flex:1 1 9em;min-height:0;overflow:auto}
-.card p a,.account details p a{color:#36c;text-decoration:none}
-.tags{margin-top:.5rem}
-.tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
- padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
-.chips{display:flex;gap:.4rem;overflow-x:auto;padding:0 0 .75rem;margin:0 -2rem;padding-inline:2rem;
- scrollbar-width:thin}
-.chips button{flex:0 0 auto;font-size:.85rem;padding:.3rem .9rem;margin:0;cursor:pointer}
-.chips button.active{background:#222;color:#fff;border-color:#222}
-.account{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 1.5rem;padding:1rem;margin:.5rem 0;
- background:#fff;border:1px solid #ddd;border-radius:8px}
-.account a{color:inherit}
-.account details{display:contents}
-.account summary{cursor:pointer;color:#555;font-size:.9rem}
-.account .header{color:#555;font-size:.9rem;white-space:nowrap}
-.account .name{display:inline-block;max-width:18rem;overflow:hidden;text-overflow:ellipsis;
- vertical-align:bottom}
-.account .facts{color:#555;font-size:.85rem;margin-top:.5rem}
-.account .facts a{color:#36c;text-decoration:none}
-.account .header a{text-decoration:none;color:#36c}
-.account details p{white-space:pre-wrap}
-.account details p{flex-basis:100%;line-height:1.5;max-width:70em;margin:.75rem 0 0}
-.account .topics{flex-basis:100%}
-.account .topics a{display:inline-block;font-size:.85rem;border:1px solid #ccc;border-radius:999px;
- padding:.15rem .7rem;margin:.2rem .2rem 0 0;background:#f4f4f4;text-decoration:none}
-"""
-
-JS = """
-const chips=document.querySelectorAll('.chips button'),cards=document.querySelectorAll('.card');
-document.querySelectorAll('.slides').forEach(s=>{
- const track=s.querySelector('.track'),v=track.querySelectorAll('video,img');let i=0,x0=null,dx=0;
- const place=(px=0)=>track.style.transform=`translateX(calc(${-i*100}% + ${px}px))`;
- const go=n=>{v[i].pause?.();i=(n+v.length)%v.length;place();
-  s.querySelector('.count').textContent=`${i+1} / ${v.length}`;};
- s.querySelector('.prev').onclick=()=>go(i-1);s.querySelector('.next').onclick=()=>go(i+1);
- track.addEventListener('pointerdown',e=>{if(e.button)return;x0=e.clientX;dx=0;
-  track.classList.add('dragging');track.setPointerCapture(e.pointerId);});
- track.addEventListener('pointermove',e=>{if(x0===null)return;dx=e.clientX-x0;place(dx);});
- const end=()=>{if(x0===null)return;x0=null;track.classList.remove('dragging');
-  Math.abs(dx)>s.clientWidth/6?go(i-Math.sign(dx)):place();};
- track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);
- track.addEventListener('dragstart',e=>e.preventDefault());});
-const typeBtns=document.querySelectorAll('.types button');let state={topic:'all',type:'all'};
-function apply(){chips.forEach(b=>b.classList.toggle('active',b.dataset.topic===state.topic));
- typeBtns.forEach(b=>b.classList.toggle('active',b.dataset.type===state.type));
- cards.forEach(c=>c.hidden=(state.topic!=='all'&&!(' '+c.dataset.topics+' ').includes(' '+state.topic+' '))
-  ||(state.type!=='all'&&c.dataset.type!==state.type));
- const q=new URLSearchParams();if(state.topic!=='all')q.set('topic',state.topic);
- if(state.type!=='all')q.set('type',state.type);
- history.replaceState(null,'',q.size?'#'+q:location.pathname);}
-chips.forEach(b=>b.onclick=()=>{state.topic=b.dataset.topic;apply();});
-typeBtns.forEach(b=>b.onclick=()=>{state.type=b.dataset.type;apply();});
-const h=location.hash.slice(1);
-if(h.includes('=')){const q=new URLSearchParams(h);state.topic=q.get('topic')||'all';
- state.type=q.get('type')||'all';}
-else if(h){state.topic=h;}
-apply();
-"""
 
 
 def build(*, quiet: bool = False) -> None:
     """Generate the overview page and one page per account found in site/."""
     SITE.mkdir(exist_ok=True)
+    for asset in ASSETS:
+        with importlib.resources.as_file(STATIC / asset) as source:
+            shutil.copyfile(source, SITE / asset)
     accounts = []
     for account in sorted(p for p in SITE.iterdir() if (p / "index.json").exists()):
         index = json.loads((account / "index.json").read_text())
@@ -191,7 +109,8 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
         f"@{name}",
         f'<header><div class="bar"><a href="../index.html">← all accounts</a> · <b>@{name}</b> · '
         f'{len(posts)} posts<span class="types">{types}</span></div>{chips}</header>'
-        f'<main><div class="grid">{"".join(cards)}</div></main><script>{JS}</script>',
+        f'<main><div class="grid">{"".join(cards)}</div></main>',
+        depth=1,
     )
 
 
@@ -268,13 +187,6 @@ def write_overview(accounts: list) -> None:
     )
 
 
-HEADER_JS = """
-const hdr=document.querySelector('header');let lastY=window.scrollY;
-addEventListener('scroll',()=>{const y=window.scrollY;
- hdr.classList.toggle('away',y>lastY&&y>hdr.offsetHeight);lastY=y;},{passive:true});
-"""
-
-
 def version() -> str:
     """The installed version of the package, empty when it is not installed as a package."""
     try:
@@ -288,12 +200,16 @@ def footer() -> str:
     return f'<footer>Generated by <a href="{REPOSITORY}">instagram-offline</a> {version()}</footer>'
 
 
-def page(path: Path, title: str, body: str, *, credit: bool = False) -> None:
-    """Write a complete HTML document with the shared stylesheet, and the credit footer if asked."""
+def page(path: Path, title: str, body: str, *, credit: bool = False, depth: int = 0) -> None:
+    """Write a complete HTML document linking the shared stylesheet and script.
+
+    ``depth`` is how many folders below site/ the page lives, for the relative links.
+    """
+    up = "../" * depth
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
         f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>{html.escape(title)}</title><style>{CSS}</style></head>"
-        f"<body>{body}{footer() if credit else ''}<script>{HEADER_JS}</script></body></html>"
+        f'<title>{html.escape(title)}</title><link rel="stylesheet" href="{up}site.css"></head>'
+        f'<body>{body}{footer() if credit else ""}<script src="{up}site.js"></script></body></html>'
     )

@@ -70,7 +70,7 @@ warn_unreachable = true
 warn_unused_ignores = true
 
 [tool.pytest.ini_options]
-addopts = "--ignore=tests/browser"
+addopts = "--ignore=tests/browser --ignore=tests/packaging"
 testpaths = ["tests"]
 
 [tool.ruff]
@@ -108,5 +108,8 @@ convention = "google"
 
 [tool.setuptools]
 packages = ["insta"]
+
+[tool.setuptools.package-data]
+insta = ["static/*"]
 
 [tool.setuptools_scm]
