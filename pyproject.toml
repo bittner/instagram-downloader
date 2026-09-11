@@ -98,7 +98,7 @@ ignore = [
   "INP001",  # test packages need no __init__.py
   "ARG",     # pytest fixtures are injected as (often unused) arguments
   "PLR2004", # literal expectations are fine in tests
-  "EM101", "TRY003",  # inline exception messages are fine in test doubles
+  "EM", "TRY003",  # inline exception messages are fine in test doubles
   "FBT",     # boolean flags on test doubles are fine
 ]
 

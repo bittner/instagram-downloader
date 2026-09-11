@@ -126,11 +126,53 @@ def test_archive_uses_captured_responses_and_skips_known_posts(env):
     assert page.handlers == []  # listener removed again
 
 
+def test_archive_keeps_going_after_a_failed_download_and_rescans_next_time(env, monkeypatch, capsys):
+    def flaky(url, path):
+        if "bad" in url:
+            raise download.requests.HTTPError("429 Client Error")
+        path.write_text(url)
+
+    monkeypatch.setattr(download, "download", flaky)
+    posts = {"bad": item("bad", taken_at=300), "good": item("good", taken_at=200)}
+    download.archive(FakePage(["bad", "good"], posts), "alice", full=False, limit=None)
+    index = json.loads((env / "alice" / "index.json").read_text())
+    assert list(index) == ["good"]  # the failed post is left for the next run
+    assert "1 failed" in capsys.readouterr().out
+    assert not (env / "alice" / ".complete").exists()
+    # the next run must not stop early at the known post, so it reaches the failed one
+    monkeypatch.setattr(download, "download", lambda url, path: path.write_text(url))
+    page = FakePage(["good", "bad"], posts)
+    download.archive(page, "alice", full=False, limit=None)
+    assert set(json.loads((env / "alice" / "index.json").read_text())) == {"good", "bad"}
+    assert (env / "alice" / ".complete").exists()
+
+
+def test_archive_stops_early_only_after_a_complete_run(env):
+    posts = {f"p{i}": item(f"p{i}", taken_at=i) for i in range(20)}
+    download.archive(FakePage(list(posts), posts), "alice", full=True, limit=None)
+    assert (env / "alice" / ".complete").exists()
+    page = FakePage(list(posts), posts)
+    download.archive(page, "alice", full=False, limit=None)
+    assert page.scrolls < 10  # stopped early, everything was known
+
+
+def test_fetch_post_treats_a_failing_page_as_no_data(env, capsys):
+    page = FakePage([], {})
+
+    def broken(url, **_):
+        raise download.PlaywrightError("net::ERR_CONNECTION_RESET\nCall log: ...")
+
+    page.goto = broken
+    assert download.fetch_post(page, "x", {}) is None
+    assert "page failed: net::ERR_CONNECTION_RESET" in capsys.readouterr().err
+
+
 def test_archive_reports_posts_without_data_and_honours_limit(env, capsys):
     page = FakePage(["ghost", "second"], {})
     download.archive(page, "alice", full=True, limit=1)
     assert "ghost: no data" in capsys.readouterr().err
     assert "second" not in json.loads((env / "alice" / "index.json").read_text())
+    assert not (env / "alice" / ".complete").exists()
 
 
 def test_scan_stops_early_when_only_known_posts_appear(env):

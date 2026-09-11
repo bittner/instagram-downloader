@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, sync_playwright
 
 ROOT = Path.cwd()
@@ -52,6 +53,9 @@ def archive(page: Page, profile: str, *, full: bool, limit: int | None) -> None:
     out = SITE / profile
     out.mkdir(parents=True, exist_ok=True)
     index_file = out / "index.json"
+    complete = out / ".complete"  # present once a run has gone through the whole profile
+    full = full or not complete.exists()
+    complete.unlink(missing_ok=True)
     index: dict[str, dict] = json.loads(index_file.read_text()) if index_file.exists() else rebuild_index(out)
     items: dict[str, dict] = {}  # shortcode -> media item as sent by Instagram
     handler = lambda r: capture_response(r, items, profile)
@@ -64,6 +68,7 @@ def archive(page: Page, profile: str, *, full: bool, limit: int | None) -> None:
     todo = [c for c in codes if c not in index or (index[c]["video"] and not index[c]["files"])]
     print(f"  {len(codes)} posts scanned, {len(todo)} to fetch")
 
+    failed = 0
     for i, code in enumerate(todo, 1):
         item = items.get(code)
         if item is None or needs_detail(item):
@@ -83,19 +88,28 @@ def archive(page: Page, profile: str, *, full: bool, limit: int | None) -> None:
         }
         if videos:
             print(f"  [{i}/{len(todo)}] {stem} ({len(videos)} video{'s' if len(videos) > 1 else ''})")
-            for k, url in enumerate(videos, 1):
-                name = f"{stem}.mp4" if len(videos) == 1 else f"{stem}_{k}.mp4"
-                download(url, out / name)
-                entry["files"].append(name)
+            try:
+                for k, url in enumerate(videos, 1):
+                    name = f"{stem}.mp4" if len(videos) == 1 else f"{stem}_{k}.mp4"
+                    download(url, out / name)
+                    entry["files"].append(name)
+            except requests.RequestException as e:
+                print(f"  failed, will retry on the next run: {e}", file=sys.stderr)
+                failed += 1
+                continue
             (out / f"{stem}.json").write_text(json.dumps(item, indent=1, ensure_ascii=False))
         index[code] = entry
         index_file.write_text(json.dumps(index, indent=1, ensure_ascii=False))
-        time.sleep(1.5)
+        time.sleep(PACE["seconds"])
 
     index_file.write_text(json.dumps(index, indent=1, ensure_ascii=False))
     page.remove_listener("response", handler)
+    if not failed and not limit:
+        complete.touch()
     n_video = sum(1 for e in index.values() if e["video"])
-    print(f"  done: {len(index)} posts known, {n_video} with video")
+    print(
+        f"  done: {len(index)} posts known, {n_video} with video" + (f", {failed} failed" if failed else "")
+    )
 
 
 def rebuild_index(out: Path) -> dict[str, dict]:
@@ -253,9 +267,13 @@ def collect_shortcodes(page: Page, profile: str, items: dict, known: set[str]) -
 
 
 def fetch_post(page: Page, code: str, items: dict) -> dict | None:
-    """Open a post page and return the media item captured from it."""
-    goto(page, f"{BASE}/p/{code}/")
-    capture_inline(page, items, None)  # the code came from the profile grid; accept any owner
+    """Open a post page and return the media item captured from it, None if the page fails."""
+    try:
+        goto(page, f"{BASE}/p/{code}/")
+        capture_inline(page, items, None)  # the code came from the profile grid; accept any owner
+    except PlaywrightError as e:
+        print(f"  page failed: {str(e).splitlines()[0]}", file=sys.stderr)
+        return None
     return items.get(code)
 
 
@@ -355,13 +373,50 @@ def caption(item: dict) -> str:
     return (c.get("text") if isinstance(c, dict) else c) or ""
 
 
+RETRY_STATUS = (429, 500, 502, 503, 504)
+RETRY_ATTEMPTS = 6
+PACE = {"seconds": 1.5, "max": 30.0}  # pause between posts; doubled whenever the CDN throttles us
+
+
 def download(url: str, path: Path) -> None:
-    """Stream the URL into the file unless it already exists."""
+    """Stream the URL into the file unless it already exists.
+
+    Rate limiting and server errors are retried with an exponential back-off,
+    honouring a Retry-After header when the CDN sends one.
+    """
     if path.exists():
         return
     tmp = path.with_suffix(".part")
-    with requests.get(url, stream=True, timeout=120) as r:
-        r.raise_for_status()
-        with tmp.open("wb") as f:
-            shutil.copyfileobj(r.raw, f)
-    tmp.rename(path)
+    for attempt in range(RETRY_ATTEMPTS):
+        last = attempt == RETRY_ATTEMPTS - 1
+        try:
+            with requests.get(url, stream=True, timeout=120) as r:
+                if r.status_code in RETRY_STATUS and not last:
+                    wait = retry_after(r.headers.get("Retry-After")) or 30 * 2**attempt
+                    slow_down(f"HTTP {r.status_code}", wait)
+                    continue
+                r.raise_for_status()
+                with tmp.open("wb") as f:
+                    shutil.copyfileobj(r.raw, f)
+        except (requests.ConnectionError, requests.Timeout) as e:
+            if last:
+                raise
+            slow_down(type(e).__name__, 30 * 2**attempt)
+            continue
+        tmp.rename(path)
+        return
+
+
+def slow_down(reason: str, wait: int) -> None:
+    """Wait before a retry and stretch the pause between posts for the rest of the run."""
+    PACE["seconds"] = min(PACE["seconds"] * 2, PACE["max"])
+    print(f"  {reason}, waiting {wait}s before retrying (pace now {PACE['seconds']:g}s)", file=sys.stderr)
+    time.sleep(wait)
+
+
+def retry_after(header: str | None) -> int:
+    """Return the seconds a Retry-After header asks for, 0 if absent or not a number."""
+    try:
+        return max(0, int(header or ""))
+    except ValueError:
+        return 0

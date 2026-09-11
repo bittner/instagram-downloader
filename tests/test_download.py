@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
+import io
 import json
+
+import pytest
 
 from insta import download
 
@@ -105,19 +108,23 @@ def test_rebuild_index_from_post_files(tmp_path):
     assert index["img"]["video"] is False
 
 
+class Response:
+    def __init__(self, status=200, headers=None):
+        self.status_code, self.headers = status, headers or {}
+        self.raw = io.BytesIO(b"data")
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise download.requests.HTTPError(f"{self.status_code} Client Error", response=self)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        pass
+
+
 def test_download_streams_to_file_and_skips_existing(tmp_path, monkeypatch):
-    class Response:
-        raw = __import__("io").BytesIO(b"data")
-
-        def raise_for_status(self):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            pass
-
     calls = []
     monkeypatch.setattr(download.requests, "get", lambda *a, **k: calls.append(a) or Response())
     target = tmp_path / "v.mp4"
@@ -125,3 +132,71 @@ def test_download_streams_to_file_and_skips_existing(tmp_path, monkeypatch):
     assert target.read_bytes() == b"data"
     download.download("http://x", target)
     assert len(calls) == 1
+
+
+def test_download_backs_off_on_rate_limiting_and_honours_retry_after(tmp_path, monkeypatch, capsys):
+    responses = iter([Response(429, {"Retry-After": "7"}), Response(503), Response()])
+    waits = []
+    monkeypatch.setattr(download.requests, "get", lambda *a, **k: next(responses))
+    monkeypatch.setattr(download.time, "sleep", waits.append)
+    download.download("http://x", tmp_path / "v.mp4")
+    assert (tmp_path / "v.mp4").read_bytes() == b"data"
+    assert waits == [7, 60]  # Retry-After first, then the exponential default for the second attempt
+    assert "HTTP 429" in capsys.readouterr().err
+
+
+def test_download_gives_up_after_the_last_attempt(tmp_path, monkeypatch):
+    monkeypatch.setattr(download.requests, "get", lambda *a, **k: Response(429, {"Retry-After": "soon"}))
+    waits = []
+    monkeypatch.setattr(download.time, "sleep", waits.append)
+    with pytest.raises(download.requests.HTTPError):
+        download.download("http://x", tmp_path / "v.mp4")
+    assert len(waits) == download.RETRY_ATTEMPTS - 1
+    assert not (tmp_path / "v.mp4").exists()
+
+
+def test_retry_after_parses_numbers_only():
+    assert download.retry_after("12") == 12
+    assert download.retry_after("-3") == 0
+    assert download.retry_after("Wed, 21 Oct 2026 07:28:00 GMT") == 0
+    assert download.retry_after(None) == 0
+
+
+@pytest.fixture(autouse=True)
+def default_pace(monkeypatch):
+    monkeypatch.setitem(download.PACE, "seconds", 1.5)
+
+
+def test_download_retries_connection_errors_and_slows_the_pace(tmp_path, monkeypatch):
+    outcomes = iter([download.requests.ConnectionError(), download.requests.Timeout(), Response()])
+
+    def get(*_a, **_k):
+        outcome = next(outcomes)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(download.requests, "get", get)
+    waits = []
+    monkeypatch.setattr(download.time, "sleep", waits.append)
+    download.download("http://x", tmp_path / "v.mp4")
+    assert (tmp_path / "v.mp4").exists()
+    assert waits == [30, 60]
+    assert download.PACE["seconds"] == 6.0  # doubled twice, from 1.5
+
+
+def test_download_reraises_a_connection_error_on_the_last_attempt(tmp_path, monkeypatch):
+    def refuse(*_a, **_k):
+        raise download.requests.ConnectionError
+
+    monkeypatch.setattr(download.requests, "get", refuse)
+    monkeypatch.setattr(download.time, "sleep", lambda _s: None)
+    with pytest.raises(download.requests.ConnectionError):
+        download.download("http://x", tmp_path / "v.mp4")
+
+
+def test_pace_never_exceeds_its_maximum(monkeypatch):
+    monkeypatch.setattr(download.time, "sleep", lambda _s: None)
+    monkeypatch.setitem(download.PACE, "seconds", 20.0)
+    download.slow_down("HTTP 429", 1)
+    assert download.PACE["seconds"] == download.PACE["max"]
