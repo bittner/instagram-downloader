@@ -1,6 +1,4 @@
-# instagram-downloader
-
-[![Vibe coded responsibly](https://img.shields.io/badge/vibe_coded-responsibly-ff69b4?logo=claude&logoColor=white)](CONTRIBUTING.md)
+# instagram-downloader [![Vibe coded responsibly](https://img.shields.io/badge/vibe_coded-responsibly-ff69b4?logo=claude&logoColor=white)](CONTRIBUTING.md)
 
 Downloads all videos and reels of one or more Instagram accounts and builds a self-contained static site in `site/`, one folder per account.
 
