@@ -46,7 +46,7 @@ insta = "insta.cli:main"
 instagram-offline = "insta.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/bittner/instagram-offline"
+Source = "https://github.com/bittner/instagram-offline"
 Changelog = "https://github.com/bittner/instagram-offline/releases"
 Issues = "https://github.com/bittner/instagram-offline/issues"
 
