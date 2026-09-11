@@ -1,4 +1,4 @@
-# instagram-offline [![Vibe coded responsibly][badge]][contributing]
+# instagram-offline [![Version][version]][pypi] [![Vibe coded responsibly][badge]][contributing]
 
 Downloads all videos and reels of one or more Instagram accounts and builds a self-contained static site in `site/`, one folder per account.
 
@@ -43,5 +43,7 @@ You are solely responsible for ensuring that your use of this software complies 
 
 Licensed under the GNU General Public License v3.0 or later, see [LICENSE](LICENSE).
 
+[version]: https://img.shields.io/pypi/v/instagram-offline?logo=pypi&logoColor=white
+[pypi]: https://pypi.org/project/instagram-offline/
 [badge]: https://img.shields.io/badge/vibe_coded-responsibly-ff69b4?logo=claude&logoColor=white
 [contributing]: CONTRIBUTING.md
