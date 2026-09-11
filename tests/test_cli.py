@@ -23,13 +23,6 @@ def test_usernames_are_archived_then_site_is_built(spies, monkeypatch):
     assert spies["build"] is True
 
 
-def test_browser_defaults_to_the_environment_variable(spies, monkeypatch):
-    monkeypatch.setenv("INSTA_BROWSER", "/opt/edge")
-    monkeypatch.setattr("sys.argv", ["insta", "alice"])
-    assert cli.main() == 0
-    assert spies["archive"][1]["browser"] == "/opt/edge"
-
-
 def test_site_only_skips_the_download(spies, monkeypatch):
     monkeypatch.setattr("sys.argv", ["insta", "--site-only"])
     assert cli.main() == 0

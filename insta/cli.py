@@ -2,7 +2,6 @@
 """Command line interface: ``uv run insta USERNAME [USERNAME ...]``."""
 
 import argparse
-import os
 
 from insta import download, website
 
@@ -18,9 +17,9 @@ def main() -> int:
     ap.add_argument("--site-only", action="store_true", help="only rebuild the HTML pages in site/")
     ap.add_argument(
         "--browser",
-        default=os.environ.get("INSTA_BROWSER"),
         metavar="EXECUTABLE",
-        help="Chromium-based browser executable to use; default: $INSTA_BROWSER, otherwise the first of "
+        help="Chromium-based browser executable to use; default: $BROWSER if it is Chromium-based, "
+        "otherwise the first of "
         + ", ".join(download.BROWSER_NAMES)
         + " found on the PATH, then Nix, then Playwright's own Chromium",
     )

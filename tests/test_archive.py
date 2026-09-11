@@ -172,6 +172,7 @@ def test_ensure_browser_gives_up(monkeypatch):
 
 @pytest.fixture
 def no_browser(monkeypatch):
+    monkeypatch.delenv("BROWSER", raising=False)
     monkeypatch.setattr(download.shutil, "which", lambda _n: None)
     monkeypatch.setattr(download.sys, "platform", "linux")
 
@@ -180,7 +181,29 @@ def test_browser_command_prefers_the_explicit_executable(no_browser):
     assert download.browser_command("/opt/brave") == ["/opt/brave"]
 
 
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        ("/usr/bin/google-chrome-stable", "/usr/bin/google-chrome-stable"),
+        ("brave %s", "brave"),
+        ("chromium:firefox", "chromium"),
+        ("firefox", None),
+        ("xdg-open", None),
+        ("", None),
+    ],
+)
+def test_preferred_browser_honours_a_chromium_based_dollar_browser(monkeypatch, env, expected):
+    monkeypatch.setenv("BROWSER", env)
+    assert download.preferred_browser() == expected
+
+
+def test_browser_command_uses_dollar_browser_before_searching(no_browser, monkeypatch):
+    monkeypatch.setenv("BROWSER", "/opt/vivaldi/vivaldi")
+    assert download.browser_command() == ["/opt/vivaldi/vivaldi"]
+
+
 def test_browser_command_finds_a_browser_on_the_path(monkeypatch):
+    monkeypatch.delenv("BROWSER", raising=False)
     monkeypatch.setattr(download.shutil, "which", lambda n: "/usr/bin/brave" if n == "brave" else None)
     assert download.browser_command() == ["/usr/bin/brave"]
 

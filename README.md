@@ -17,7 +17,7 @@ From a checkout, `uv run insta USERNAME` does the same.
 
 Log in to Instagram in the browser window on the first run.
 
-Any Chromium-based browser works: Chromium, Chrome, Brave, Edge, Vivaldi or Opera are found automatically on Linux, macOS and Windows; `--browser EXECUTABLE` or `INSTA_BROWSER` selects one explicitly. Without any, Playwright's own Chromium is downloaded on first use. Firefox and Safari are not supported, as they lack the DevTools protocol the tool relies on.
+Any Chromium-based browser works: Chromium, Chrome, Brave, Edge, Vivaldi or Opera are found automatically on Linux, macOS and Windows; `--browser EXECUTABLE` selects one explicitly, and a Chromium-based browser in the conventional `$BROWSER` variable is preferred over the search. Without any, Playwright's own Chromium is downloaded on first use. Firefox and Safari are not supported, as they lack the DevTools protocol the tool relies on.
 
 An optional `site/USERNAME/profile.json` with an `about` text and a list of topics (name plus caption keywords) adds an "About" box to the overview and topic filters to the account page. Keywords match at the start of a word; a trailing space makes a keyword match whole words only.
 

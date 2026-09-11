@@ -10,6 +10,7 @@ once they reach known posts and only download what is new.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -146,15 +147,33 @@ BROWSER_APPS = {
 }
 
 
+CHROMIUM_FAMILY = ("chromium", "chrome", "brave", "edge", "vivaldi", "opera")
+
+
+def preferred_browser() -> str | None:
+    """Return the browser from the conventional $BROWSER variable if it is Chromium-based.
+
+    $BROWSER may hold a colon-separated list and a %s placeholder for the URL, as
+    the convention allows; only the first entry is used, without the placeholder.
+    """
+    first = os.environ.get("BROWSER", "").split(":")[0].replace("%s", "").strip()
+    if first and any(name in Path(first).name.lower() for name in CHROMIUM_FAMILY):
+        return first
+    return None
+
+
 def browser_command(explicit: str | None = None) -> list[str]:
     """Return the command that starts a Chromium-based browser.
 
-    Looks for the given executable first, then for the common browsers on the PATH
-    and in the platform's application folders, then for Nix, and finally falls back
-    to Playwright's own Chromium, which is downloaded on first use.
+    Looks for the given executable first, then for a Chromium-based $BROWSER, then
+    for the common browsers on the PATH and in the platform's application folders,
+    then for Nix, and finally falls back to Playwright's own Chromium, which is
+    downloaded on first use.
     """
     if explicit:
         return [explicit]
+    if preferred := preferred_browser():
+        return [preferred]
     for name in BROWSER_NAMES:
         if exe := shutil.which(name):
             return [exe]
