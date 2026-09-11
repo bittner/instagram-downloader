@@ -40,7 +40,10 @@ def test_build_writes_overview_and_account_page(site, capsys):
     assert "@alice</b> · 2 videos" in overview
     assert "<details>" not in overview
     assert account.index("2024-02-01_new.mp4") < account.index("2024-01-01_old_1.mp4")
-    assert "2024-01-01_old_2.mp4" in account
+    assert 'src="2024-01-01_old_2.mp4" hidden>' in account
+    assert '<div class="slides"><video controls preload="metadata" src="2024-01-01_old_1.mp4">' in account
+    assert '<span class="count">1 / 2</span>' in account
+    assert account.count('class="slides"') == 1  # single videos get no slider
     assert "riciclo &lt;b&gt;" in account
     assert 'href="https://www.instagram.com/p/new/"' in account
     assert "1 accounts" in capsys.readouterr().out

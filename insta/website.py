@@ -24,6 +24,13 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
 .card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden}
 .card video{width:100%;aspect-ratio:9/16;background:#000;display:block}
+.slides{position:relative}
+.slides video[hidden]{display:none}
+.slides button{position:absolute;top:50%;transform:translateY(-50%);width:2.2rem;height:2.2rem;border:0;
+ border-radius:50%;background:rgba(255,255,255,.85);color:#222;font-size:1.2rem;cursor:pointer}
+.slides .prev{left:.5rem}.slides .next{right:.5rem}
+.slides .count{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;
+ padding:.15rem .5rem;border-radius:999px}
 .card .meta{padding:.75rem 1rem}
 .card time{color:#666;font-size:.85rem}
 .card p{white-space:pre-wrap;margin:.5rem 0 0;font-size:.9rem;max-height:9em;overflow:auto}
@@ -46,6 +53,10 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 
 JS = """
 const chips=document.querySelectorAll('.chips button'),cards=document.querySelectorAll('.card');
+document.querySelectorAll('.slides').forEach(s=>{const v=s.querySelectorAll('video');let i=0;
+ const show=n=>{v[i].pause();v[i].hidden=true;i=(n+v.length)%v.length;v[i].hidden=false;
+  s.querySelector('.count').textContent=`${i+1} / ${v.length}`;};
+ s.querySelector('.prev').onclick=()=>show(i-1);s.querySelector('.next').onclick=()=>show(i+1);});
 function apply(t){chips.forEach(b=>b.classList.toggle('active',b.dataset.topic===t));
  cards.forEach(c=>c.hidden=t!=='all'&&!(' '+c.dataset.topics+' ').includes(' '+t+' '));
  history.replaceState(null,'',t==='all'?location.pathname:'#'+t);}
@@ -77,8 +88,15 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
     cards = []
     for code, e, topics in posts:
         videos = "".join(
-            f'<video controls preload="metadata" src="{html.escape(f)}"></video>' for f in e["files"]
+            f'<video controls preload="metadata" src="{html.escape(f)}"{" hidden" if k else ""}></video>'
+            for k, f in enumerate(e["files"])
         )
+        if len(e["files"]) > 1:
+            videos = (
+                f'<div class="slides">{videos}<button class="prev" aria-label="previous">&lsaquo;</button>'
+                f'<button class="next" aria-label="next">&rsaquo;</button>'
+                f'<span class="count">1 / {len(e["files"])}</span></div>'
+            )
         tags = "".join(f"<span>{html.escape(names[t])}</span>" for t in topics)
         cards.append(
             f'<div class="card" data-topics="{" ".join(topics)}">{videos}<div class="meta">'
