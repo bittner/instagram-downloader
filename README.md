@@ -43,7 +43,7 @@ You are solely responsible for ensuring that your use of this software complies 
 
 Licensed under the GNU General Public License v3.0 or later, see [LICENSE](LICENSE).
 
-[version]: https://img.shields.io/pypi/v/instagram-offline
-[badge]: https://img.shields.io/badge/vibe_coded-responsibly-ff69b4
+[version]: https://img.shields.io/pypi/v/instagram-offline?logo=pypi&logoColor=white
+[badge]: https://img.shields.io/badge/vibe_coded-responsibly-ff69b4?logo=claude&logoColor=white
 [pypi]: https://pypi.org/project/instagram-offline/
 [contributing]: CONTRIBUTING.md
