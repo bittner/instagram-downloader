@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Command line interface: ``uv run insta USERNAME [USERNAME ...]``."""
+"""Command line interface: ``uv run insta USERNAME [USERNAME ...]`` or ``uv run insta --all``."""
 
 import argparse
 import sys
@@ -21,6 +21,7 @@ def main() -> int:
     ap.add_argument("usernames", nargs="*", metavar="USERNAME", help="Instagram account(s) to archive")
     ap.add_argument("--full", action="store_true", help="scan the whole profile, not just until known posts")
     ap.add_argument("--max", type=int, default=None, help="stop after N posts (for testing)")
+    ap.add_argument("--all", action="store_true", help="update every account already archived in site/")
     ap.add_argument("--site-only", action="store_true", help="only rebuild the HTML pages in site/")
     ap.add_argument(
         "--browser",
@@ -33,8 +34,14 @@ def main() -> int:
     args = ap.parse_args()
     status = 0
     if not args.site_only:
-        if not args.usernames:
-            ap.error("USERNAME is required unless --site-only is given")
+        if args.all:
+            if args.usernames:
+                ap.error("--all cannot be combined with USERNAME")
+            args.usernames = archived_accounts()
+            if not args.usernames:
+                ap.error("no archived accounts found in site/")
+        elif not args.usernames:
+            ap.error("USERNAME is required unless --all or --site-only is given")
         try:
             download.archive_all(
                 args.usernames,
@@ -48,6 +55,11 @@ def main() -> int:
             status = 130
     website.build()
     return status
+
+
+def archived_accounts() -> list[str]:
+    """The accounts with an archive in site/, in alphabetical order."""
+    return sorted(p.name for p in download.SITE.iterdir() if (p / "index.json").exists())
 
 
 def throttled(action: Callable[[], None], interval: float) -> Callable[[], None]:

@@ -81,3 +81,25 @@ def test_interrupting_the_download_still_builds_the_site(spies, monkeypatch, cap
     assert cli.main() == 130
     assert spies["build"] is True
     assert "rerun to resume" in capsys.readouterr().err
+
+
+def test_all_updates_every_archived_account(spies, monkeypatch, tmp_path):
+    monkeypatch.setattr(download, "SITE", tmp_path)
+    for name in ("zoe", "alice", "stray"):
+        (tmp_path / name).mkdir()
+    (tmp_path / "zoe" / "index.json").write_text("{}")
+    (tmp_path / "alice" / "index.json").write_text("{}")
+    monkeypatch.setattr("sys.argv", ["insta", "--all"])
+    assert cli.main() == 0
+    assert spies["archive"][0] == (["alice", "zoe"],)
+
+
+def test_all_rejects_usernames_and_an_empty_site(spies, monkeypatch, tmp_path):
+    monkeypatch.setattr(download, "SITE", tmp_path)
+    monkeypatch.setattr("sys.argv", ["insta", "--all", "alice"])
+    with pytest.raises(SystemExit):
+        cli.main()
+    monkeypatch.setattr("sys.argv", ["insta", "--all"])
+    with pytest.raises(SystemExit):
+        cli.main()
+    assert "archive" not in spies
