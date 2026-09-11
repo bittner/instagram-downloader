@@ -7,6 +7,7 @@ These tests need a Chromium: one found on the PATH, or Playwright's own
 (``uv run playwright install chromium``). They are skipped otherwise.
 """
 
+import base64
 import json
 import shutil
 
@@ -15,6 +16,9 @@ from playwright.sync_api import Error, sync_playwright
 
 from insta import download, website
 
+ONE_PIXEL_PNG = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+)
 INDEX = {
     "photo": {
         "date": "2024-03-01",
@@ -60,6 +64,8 @@ def account_page(tmp_path, monkeypatch):
     monkeypatch.setattr(website, "SITE", tmp_path)
     (tmp_path / "alice").mkdir()
     (tmp_path / "alice" / "index.json").write_text(json.dumps(INDEX))
+    for photo in ("p.jpg", "c_1.jpg"):
+        (tmp_path / "alice" / photo).write_bytes(base64.b64decode(ONE_PIXEL_PNG))
     website.build(quiet=True)
     return (tmp_path / "alice" / "index.html").as_uri()
 
@@ -92,4 +98,32 @@ def test_topic_filter_combines_with_the_type_filter(browser, account_page):
     page.click('.types button[data-type="video"]')
     assert shown(page) == 1
     assert page.evaluate("location.hash") == "#topic=a&type=video"
+    page.close()
+
+
+def test_lightbox_enlarges_photos_and_videos_alike(browser, account_page):
+    page = browser.new_page()
+    page.goto(account_page)
+    box = page.locator(".lightbox")
+    assert box.is_hidden()
+    page.click('.card[data-type="photo"] .media img')
+    assert box.is_visible()
+    assert page.locator(".lightbox .stage img").get_attribute("src") == "p.jpg"
+    assert page.locator(".lightbox .prev").is_hidden()  # a single photo has no slides
+    page.keyboard.press("Escape")
+    assert box.is_hidden()
+    page.click('.card[data-type="carousel"] .media img')  # a real click, through the slider's pointer capture
+    assert page.locator(".lightbox .stage img").get_attribute("src") == "c_1.jpg"
+    assert page.locator(".lightbox .count").inner_text() == "1 / 2"
+    page.keyboard.press("ArrowRight")
+    assert page.locator(".lightbox .stage video").get_attribute("src") == "c_2.mp4"
+    page.locator(".lightbox .close").click()
+    assert box.is_hidden()
+    page.locator('.card[data-type="video"] .expand').dispatch_event("click")
+    assert page.locator(".lightbox .stage video").get_attribute("src") == "v.mp4"
+    page.locator(".lightbox .close").click()
+    page.click(
+        '.card[data-type="video"] .media video', position={"x": 10, "y": 10}
+    )  # plays, does not enlarge
+    assert box.is_hidden()
     page.close()

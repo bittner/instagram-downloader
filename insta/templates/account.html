@@ -15,6 +15,7 @@
 <main><div class="grid">
 {%- for post in posts %}
 <div class="card" data-topics="{{ post.topics|join(" ") }}" data-type="{{ post.type }}">
+{{- '' }}<div class="media">
 {%- if post.files|length > 1 -%}
 <div class="slides"><div class="track">{% for file in post.files %}{{ medium(file) }}{% endfor %}</div>
 {{- '' }}<button class="prev" aria-label="previous">&lsaquo;</button><button class="next" aria-label="next">&rsaquo;</button>
@@ -22,8 +23,12 @@
 {%- else -%}
 {{ medium(post.files[0]) }}
 {%- endif -%}
-<div class="meta"><div class="when"><time>{{ post.date }}</time> · <a href="https://www.instagram.com/p/{{ post.code }}/">instagram</a></div>
+<button class="expand" aria-label="enlarge">&#x26F6;</button></div>
+{{- '' }}<div class="meta"><div class="when"><time>{{ post.date }}</time> · <a href="https://www.instagram.com/p/{{ post.code }}/">instagram</a></div>
 <p>{{ post.caption }}</p><div class="tags">{% for tag in post.tags %}<span>{{ tag }}</span>{% endfor %}</div></div></div>
 {%- endfor %}
 </div></main>
+<div class="lightbox" hidden><div class="stage"></div>
+{{- '' }}<button class="prev" aria-label="previous">&lsaquo;</button><button class="next" aria-label="next">&rsaquo;</button>
+{{- '' }}<span class="count"></span><button class="close" aria-label="close">&times;</button></div>
 {% endblock %}

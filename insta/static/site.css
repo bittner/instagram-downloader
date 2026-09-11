@@ -55,3 +55,20 @@ footer a{color:#666}
 .account .topics{flex-basis:100%}
 .account .topics a{display:inline-block;font-size:.85rem;border:1px solid #ccc;border-radius:999px;
  padding:.15rem .7rem;margin:.2rem .2rem 0 0;background:#f4f4f4;text-decoration:none}
+.media{position:relative}
+.media img{cursor:zoom-in}
+.media .expand{position:absolute;top:.5rem;left:.5rem;width:2rem;height:2rem;border:0;border-radius:50%;
+ background:rgba(0,0,0,.55);color:#fff;font-size:1rem;cursor:pointer;opacity:0;transition:opacity .2s}
+.media:hover .expand,.media .expand:focus{opacity:1}
+.lightbox{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.93);display:flex;align-items:center;
+ justify-content:center}
+.lightbox[hidden]{display:none}
+.lightbox .stage img,.lightbox .stage video{display:block;max-width:96vw;max-height:94vh;object-fit:contain}
+.lightbox button{position:absolute;border:0;border-radius:50%;background:rgba(255,255,255,.85);color:#222;
+ cursor:pointer;width:2.6rem;height:2.6rem;font-size:1.4rem}
+.lightbox .prev{left:1rem;top:50%;transform:translateY(-50%)}
+.lightbox .next{right:1rem;top:50%;transform:translateY(-50%)}
+.lightbox .close{top:1rem;right:1rem}
+.lightbox .count{position:absolute;top:1.3rem;left:50%;transform:translateX(-50%);color:#fff;font-size:.9rem;
+ background:rgba(0,0,0,.6);padding:.15rem .6rem;border-radius:999px}
+.lightbox .count:empty{display:none}

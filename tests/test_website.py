@@ -227,3 +227,12 @@ def test_version_is_empty_when_the_package_is_not_installed(monkeypatch):
     monkeypatch.setattr(website.importlib.metadata, "version", missing)
     assert website.version() == ""
     assert website.version.__doc__
+
+
+def test_account_page_has_a_lightbox_and_enlarge_buttons(site):
+    website.build()
+    account = (site / "alice" / "index.html").read_text()
+    assert account.count('<button class="expand" aria-label="enlarge">') == 2
+    assert '<div class="lightbox" hidden><div class="stage"></div>' in account
+    assert "<footer>" not in account
+    assert "const box=document.querySelector('.lightbox')" in (site / "site.js").read_text()
