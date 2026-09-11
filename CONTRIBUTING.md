@@ -8,6 +8,7 @@ Development tasks are defined in the `justfile`; run `just` to list them.
 just test            # run the test suite with coverage
 just test-pythons    # run it against all supported Python versions
 just codestyle       # ruff format and lint checks
+just types           # mypy static type checking
 just clean           # remove build artifacts and caches
 ```
 

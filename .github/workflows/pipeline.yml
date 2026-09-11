@@ -16,6 +16,7 @@ jobs:
         task:
         - format --diff
         - lint --diff
+        - types
       fail-fast: false
     steps:
     - uses: actions/checkout@v6

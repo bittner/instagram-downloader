@@ -9,7 +9,7 @@ set ignore-comments := true
 
 # Run code style checks and the test suite on all supported Python versions
 [group('lifecycle')]
-all: codestyle test-pythons clean
+all: codestyle types test-pythons clean
 
 # Remove build artifacts and reports (use -v for verbose, -n for dry-run)
 [group('lifecycle')]
@@ -35,6 +35,11 @@ format *args=('--check'):
 [group('codestyle')]
 lint *args=('--statistics'):
     uvx ruff check {{ args }}
+
+# Static type checking (use --pretty for error details)
+[group('safety')]
+types *args:
+    uv run --extra=mypy mypy insta {{ args }}
 
 # Run the test suite and show coverage
 [group('tests')]

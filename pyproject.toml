@@ -32,6 +32,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mypy = [
+  "mypy>=1.19",
+  "types-requests>=2.32",
+]
 unittest = [
   "coverage[toml]>=7",
   "pytest>=8",
@@ -48,6 +52,13 @@ show_missing = true
 
 [tool.coverage.run]
 source = ["insta"]
+
+[tool.mypy]
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
