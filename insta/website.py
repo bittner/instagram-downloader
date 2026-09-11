@@ -33,10 +33,12 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .chips button.active{background:#222;color:#fff;border-color:#222}
 .account{display:block;padding:1rem;margin:.5rem 0;background:#fff;border:1px solid #ddd;border-radius:8px}
 .account a{color:inherit}
-.account details{margin-top:.5rem}
-.account summary{cursor:pointer;color:#555}
-.account details p{line-height:1.5;max-width:70em}
-.account .topics a{display:inline-block;font-size:.85rem;border:1px solid #ccc;border-radius:999px;padding:.15rem .7rem;margin:.2rem .2rem 0 0;background:#f4f4f4;text-decoration:none}
+.account details{display:contents}
+.account summary{cursor:pointer;color:#555;font-size:.9rem}
+.account details p{flex-basis:100%;line-height:1.5;max-width:70em;margin:.75rem 0 0}
+.account .topics{flex-basis:100%}
+.account .topics a{display:inline-block;font-size:.85rem;border:1px solid #ccc;border-radius:999px;
+ padding:.15rem .7rem;margin:.2rem .2rem 0 0;background:#f4f4f4;text-decoration:none}
 """
 
 JS = """
