@@ -20,7 +20,9 @@ def main() -> int:
         "--browser",
         default=os.environ.get("INSTA_BROWSER"),
         metavar="EXECUTABLE",
-        help="Chromium-based browser to use (default: $INSTA_BROWSER, else the first one found)",
+        help="Chromium-based browser executable to use; default: $INSTA_BROWSER, otherwise the first of "
+        + ", ".join(download.BROWSER_NAMES)
+        + " found on the PATH, then Nix, then Playwright's own Chromium",
     )
     args = ap.parse_args()
     if not args.site_only:
