@@ -195,3 +195,7 @@ def test_caption_box_fills_the_card_and_the_date_line_stays_on_one_line(site):
         in account
     )
     assert "font-size:.9rem;flex:1 1 9em;min-height:0;overflow:auto}" in website.CSS
+
+
+def test_hidden_cards_are_not_displayed_despite_the_flex_layout():
+    assert ".card[hidden]{display:none}" in website.CSS

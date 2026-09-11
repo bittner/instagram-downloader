@@ -34,6 +34,7 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
 .card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;display:flex;
  flex-direction:column}
+.card[hidden]{display:none}
 .card video{width:100%;aspect-ratio:9/16;background:#000;display:block}
 .card img{width:100%;display:block;background:#000}
 .slides{position:relative;overflow:hidden}
