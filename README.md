@@ -19,4 +19,10 @@ An optional `site/USERNAME/profile.json` with an `about` text and a list of topi
 
 `site/` is ignored here; keep it as a separate private Git repository. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Legal notice
+
+This software is provided for research and educational purposes only. Downloading content from Instagram in an automated way, in particular with a logged-in account, may violate Instagram's Terms of Use and Meta's platform policies and may result in restrictions or termination of the account used. All downloaded content remains the intellectual property of its respective creators and rights holders. Whether making a copy for private use is permitted depends on the copyright law of your jurisdiction; distributing, publishing or otherwise making the downloaded content or the generated website available to the public without the rights holders' permission constitutes copyright infringement and may violate personality, image and data-protection rights.
+
+You are solely responsible for ensuring that your use of this software complies with all applicable laws, regulations and contractual terms. The authors and contributors accept no liability for any claims, damages or other liability arising from the use of this software or the content obtained with it. Nothing in this document constitutes legal advice.
+
 Licensed under the GNU General Public License v3.0 or later, see [LICENSE](LICENSE).
