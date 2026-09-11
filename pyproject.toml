@@ -2,6 +2,8 @@
 name = "instagram-downloader"
 version = "0.1.0"
 description = "Download videos and reels from Instagram accounts into a browsable local site"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "playwright>=1.50",

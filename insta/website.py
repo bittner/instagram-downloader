@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Build the HTML pages of the static website in site/.
 
 Each site/USERNAME/ folder holds the downloaded videos and an index.json; this adds

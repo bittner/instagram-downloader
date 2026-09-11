@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Topic classification of posts by keyword rules.
 
 Each account may ship a ``profile.json`` next to its ``index.json`` with an ``about``

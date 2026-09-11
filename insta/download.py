@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Archive the videos and reels of an Instagram profile via a real Chromium session.
 
 Instagram blocks scripted API clients, so this drives Chromium over the DevTools
