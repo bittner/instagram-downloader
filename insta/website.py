@@ -21,8 +21,9 @@ SITE = ROOT / "site"
 
 CSS = """
 body{font-family:system-ui,sans-serif;margin:0;background:#fafafa;color:#222}
-header{padding:1rem 2rem;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:10;
+header{padding:1rem 2rem 0;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:10;
  transition:transform .25s ease}
+header .bar{padding-bottom:1rem}
 header.away{transform:translateY(-100%)}
 header a{color:inherit;text-decoration:none}
 main{padding:1rem 2rem;max-width:1400px;margin:auto}
@@ -45,8 +46,9 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .tags{margin-top:.5rem}
 .tags span,.chips button{display:inline-block;font-size:.75rem;border:1px solid #ccc;border-radius:999px;
  padding:.1rem .6rem;margin:.15rem .2rem 0 0;background:#f4f4f4;color:#444}
-.chips{margin:0 0 1.5rem}
-.chips button{font-size:.85rem;padding:.3rem .9rem;cursor:pointer}
+.chips{display:flex;gap:.4rem;overflow-x:auto;padding:0 0 .75rem;margin:0 -2rem;padding-inline:2rem;
+ scrollbar-width:thin}
+.chips button{flex:0 0 auto;font-size:.85rem;padding:.3rem .9rem;margin:0;cursor:pointer}
 .chips button.active{background:#222;color:#fff;border-color:#222}
 .account{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 1.5rem;padding:1rem;margin:.5rem 0;
  background:#fff;border:1px solid #ddd;border-radius:8px}
@@ -146,8 +148,9 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
     page(
         SITE / name / "index.html",
         f"@{name}",
-        f'<header><a href="../index.html">← all accounts</a> · <b>@{name}</b> · {len(posts)} videos</header>'
-        f'<main>{chips}<div class="grid">{"".join(cards)}</div></main><script>{JS}</script>',
+        f'<header><div class="bar"><a href="../index.html">← all accounts</a> · <b>@{name}</b> · '
+        f"{len(posts)} videos</div>{chips}</header>"
+        f'<main><div class="grid">{"".join(cards)}</div></main><script>{JS}</script>',
     )
 
 
@@ -219,7 +222,7 @@ def write_overview(accounts: list) -> None:
     page(
         SITE / "index.html",
         "Instagram archive",
-        f"<header><b>Instagram archive</b></header><main>{''.join(boxes)}</main>",
+        f'<header><div class="bar"><b>Instagram archive</b></div></header><main>{"".join(boxes)}</main>',
     )
 
 

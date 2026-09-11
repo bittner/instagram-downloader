@@ -158,3 +158,10 @@ def test_pages_get_the_sticky_header_script(site):
         html_text = page.read_text()
         assert "header.away{transform:translateY(-100%)}" in html_text
         assert "hdr.classList.toggle('away'" in html_text
+
+
+def test_filter_chips_sit_in_the_sticky_header(site):
+    (site / "alice" / "profile.json").write_text(json.dumps(PROFILE))
+    website.build()
+    account = (site / "alice" / "index.html").read_text()
+    assert account.index("<header>") < account.index('<div class="chips">') < account.index("</header>")
