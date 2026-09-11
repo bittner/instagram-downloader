@@ -36,8 +36,8 @@ def archive_all(
     """Archive several profiles in one browser session, starting the browser if needed."""
     proc = ensure_browser(browser)
     with sync_playwright() as p:
-        browser = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
-        page = browser.contexts[0].new_page()
+        cdp = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
+        page = cdp.contexts[0].new_page()
         for username in usernames:
             archive(page, username, full=full, limit=limit)
         page.close()
