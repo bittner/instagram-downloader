@@ -17,7 +17,19 @@ Log in to Instagram in the Chromium window on the first run.
 
 An optional `site/USERNAME/profile.json` with an `about` text and a list of topics (name plus caption keywords) adds an "About" box to the overview and topic filters to the account page. Keywords match at the start of a word; a trailing space makes a keyword match whole words only.
 
-`site/` is ignored here; keep it as a separate private Git repository. See [CONTRIBUTING.md](CONTRIBUTING.md).
+### Versioning the content
+
+`site/` is ignored by this repository. To track changes of the archive, keep it as a separate, private Git repository that ignores the video files and versions only the metadata, index and HTML pages:
+
+```sh
+cd site
+git init
+printf '*.mp4\n*.part\n' > .gitignore
+git add .
+git commit -m "Add archive"
+```
+
+After each download run, commit the changes in `site/`.
 
 ## Legal notice
 
