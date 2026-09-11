@@ -36,9 +36,7 @@ a Chromium-based browser in the conventional `$BROWSER` variable is preferred ov
 Without any, Playwright's own Chromium is downloaded on first use.
 **Firefox and Safari are not supported**, as they lack the DevTools protocol the tool relies on.
 
-An optional `site/USERNAME/profile.json` with an `about` text and a list of topics (name plus
-caption keywords) adds an "About" box to the overview and topic filters to the account page.
-Keywords match at the start of a word; a trailing space makes a keyword match whole words only.
+Every account page has topic filters and an "About" box on the overview: by default the topics are the hashtags the account uses most, and the About text is the account's own bio, captured with its name, category, follower count and links. An optional `site/USERNAME/profile.json` with an `about` text and a list of topics (name plus caption keywords) replaces either. Keywords match at the start of a word; a trailing space makes a keyword match whole words only.
 
 ### Versioning the content
 

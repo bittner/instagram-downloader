@@ -71,3 +71,51 @@ def test_folders_without_index_are_ignored(site):
     (site / "stray").mkdir()
     website.build()
     assert not (site / "stray" / "index.html").exists()
+
+
+HEADER = {
+    "username": "alice",
+    "full_name": "Alice <A>",
+    "biography": "Bio line 1\nline 2",
+    "category": "Creator",
+    "links": ["https://alice.example/"],
+    "followers": 12345,
+    "following": 1,
+    "posts": 3,
+    "verified": False,
+}
+
+
+def test_captured_header_provides_the_baseline_about_and_hashtag_topics(site):
+    (site / "alice" / "account.json").write_text(json.dumps(HEADER))
+    (site / "alice" / "index.json").write_text(
+        json.dumps(
+            dict(
+                INDEX,
+                new=dict(INDEX["new"], caption="#riciclo <b>"),
+                old=dict(INDEX["old"], caption="#riciclo x"),
+            )
+        )
+    )
+    website.build()
+    overview = (site / "index.html").read_text()
+    account = (site / "alice" / "index.html").read_text()
+    assert '<span class="header">Alice &lt;A&gt; · Creator · 12,345 followers · ' in overview
+    assert '<a href="https://alice.example/">alice.example</a></span><details>' in overview
+    assert "<p>Bio line 1\nline 2</p>" in overview
+    assert 'data-topic="riciclo">#riciclo · 2</button>' in account
+
+
+def test_hand_written_profile_wins_over_the_captured_header(site):
+    (site / "alice" / "account.json").write_text(json.dumps(HEADER))
+    (site / "alice" / "profile.json").write_text(json.dumps(PROFILE))
+    website.build()
+    overview = (site / "index.html").read_text()
+    assert "<p>About &lt;alice&gt;</p>" in overview
+    assert "Bio line 1" not in overview
+    assert "12,345 followers" in overview  # the factual line is shown regardless
+
+
+def test_header_line_is_empty_without_a_header():
+    assert website.header_line({}) == ""
+    assert website.header_line({"followers": 0}) == "0 followers"

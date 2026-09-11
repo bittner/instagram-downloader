@@ -200,3 +200,66 @@ def test_pace_never_exceeds_its_maximum(monkeypatch):
     monkeypatch.setitem(download.PACE, "seconds", 20.0)
     download.slow_down("HTTP 429", 1)
     assert download.PACE["seconds"] == download.PACE["max"]
+
+
+USER = {
+    "username": "alice",
+    "full_name": "Alice A.",
+    "biography": "Hi\nthere",
+    "category": "Creator",
+    "bio_links": [{"url": "https://a.example"}],
+    "external_url": "https://b.example",
+    "follower_count": 1234,
+    "following_count": 5,
+    "media_count": 7,
+    "is_verified": False,
+}
+
+
+def test_harvest_account_finds_the_profiles_own_record():
+    account = {}
+    download.harvest_account(
+        {"data": [{"username": "bob", "biography": "x"}, {"user": USER}]}, "alice", account
+    )
+    assert account["full_name"] == "Alice A."
+
+
+def test_account_summary_reduces_the_record():
+    summary = download.account_summary(USER)
+    assert summary["links"] == ["https://b.example", "https://a.example"]
+    assert summary["followers"] == 1234
+    assert summary["posts"] == 7
+    assert summary["category"] == "Creator"
+    assert len(summary["captured"]) == 10
+    assert download.account_summary({"username": "x", "biography": None})["biography"] == ""
+
+
+def test_capture_response_captures_the_account_once(monkeypatch):
+    class R:
+        url = "https://www.instagram.com/api/graphql"
+        request = type("Req", (), {"resource_type": "xhr"})()
+
+        def __init__(self, body):
+            self._body = body
+
+        def text(self):
+            return self._body
+
+    account = {}
+    download.capture_response(R(json.dumps({"user": USER})), {}, "alice", account)
+    assert account["biography"] == "Hi\nthere"
+    download.capture_response(R(json.dumps({"user": dict(USER, biography="changed")})), {}, "alice", account)
+    assert account["biography"] == "Hi\nthere"  # the first capture stands
+
+
+def test_save_videos_reports_a_failed_post(tmp_path, monkeypatch, capsys):
+    def flaky(url, path):
+        if "bad" in url:
+            raise download.requests.HTTPError("429")
+        path.write_text(url)
+
+    monkeypatch.setattr(download, "download", flaky)
+    entry = {"files": []}
+    assert download.save_videos(tmp_path, "2024-01-01_x", ["ok1", "bad"], entry) is False
+    assert "will retry" in capsys.readouterr().err
+    assert download.save_videos(tmp_path, "2024-01-01_y", ["ok2"], entry) is True

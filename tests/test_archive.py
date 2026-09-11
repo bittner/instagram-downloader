@@ -114,6 +114,11 @@ def test_archive_uses_captured_responses_and_skips_known_posts(env):
     def goto_and_emit(url, **kw):
         original_goto(url, **kw)
         page.emit(FakeResponse(f"{BASE}/graphql/query", json.dumps({"data": [item("new")]})))
+        page.emit(
+            FakeResponse(
+                f"{BASE}/api/graphql", json.dumps({"user": {"username": "alice", "biography": "Hi"}})
+            )
+        )
         page.emit(FakeResponse(f"{BASE}/graphql/query", None))  # unreadable body is ignored
         page.emit(FakeResponse("https://cdn.example/x", json.dumps(item("ignored")), "media"))
 
@@ -123,6 +128,7 @@ def test_archive_uses_captured_responses_and_skips_known_posts(env):
     assert set(index) == {"old", "new"}
     assert index["new"]["files"] == ["1970-01-01_new.mp4"]
     assert not any("/p/new/" in u for u in page.visited)  # no detail page needed
+    assert json.loads((env / "alice" / "account.json").read_text())["biography"] == "Hi"
     assert page.handlers == []  # listener removed again
 
 

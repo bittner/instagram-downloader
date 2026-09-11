@@ -13,7 +13,7 @@ import html
 import json
 from pathlib import Path
 
-from insta.topics import classify, compile_topics, load_profile
+from insta.topics import classify, compile_topics, hashtag_topics, load_profile
 
 ROOT = Path.cwd()
 SITE = ROOT / "site"
@@ -46,6 +46,9 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .account a{color:inherit}
 .account details{display:contents}
 .account summary{cursor:pointer;color:#555;font-size:.9rem}
+.account .header{color:#555;font-size:.9rem}
+.account .header a{text-decoration:none;color:#36c}
+.account details p{white-space:pre-wrap}
 .account details p{flex-basis:100%;line-height:1.5;max-width:70em;margin:.75rem 0 0}
 .account .topics{flex-basis:100%}
 .account .topics a{display:inline-block;font-size:.85rem;border:1px solid #ccc;border-radius:999px;
@@ -81,11 +84,17 @@ def build(*, quiet: bool = False) -> None:
     for account in sorted(p for p in SITE.iterdir() if (p / "index.json").exists()):
         index = json.loads((account / "index.json").read_text())
         profile = load_profile(account)
+        header = load_header(account)
+        videos = [(c, e) for c, e in index.items() if e["files"]]
+        if not profile["topics"]:
+            profile["topics"] = hashtag_topics([e["caption"] for _, e in videos])
+        if not profile["about"]:
+            profile["about"] = header.get("biography", "")
         compiled = compile_topics(profile["topics"])
-        posts = [(c, e, classify(e["caption"], compiled)) for c, e in index.items() if e["files"]]
+        posts = [(c, e, classify(e["caption"], compiled)) for c, e in videos]
         posts.sort(key=lambda p: p[1]["taken_at"], reverse=True)
         counts = {t["id"]: sum(1 for p in posts if t["id"] in p[2]) for t in profile["topics"]}
-        accounts.append((account.name, len(posts), profile, counts))
+        accounts.append((account.name, len(posts), profile, counts, header))
         write_account_page(account.name, posts, profile, counts)
     write_overview(accounts)
     if not quiet:
@@ -131,17 +140,37 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
     )
 
 
+def load_header(account_dir: Path) -> dict:
+    """Read the captured profile header (account.json), or an empty dict if there is none."""
+    f = account_dir / "account.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+def header_line(header: dict) -> str:
+    """Format name, category, follower count and links of a profile header as HTML."""
+    parts = [html.escape(header[k]) for k in ("full_name", "category") if header.get(k)]
+    if header.get("followers") is not None:
+        parts.append(f"{header['followers']:,} followers")
+    parts += [
+        f'<a href="{html.escape(u)}">{html.escape(u.removeprefix("https://").rstrip("/"))}</a>'
+        for u in header.get("links", [])
+    ]
+    return " · ".join(parts)
+
+
 def write_overview(accounts: list) -> None:
     """Write the overview page listing all accounts with their About box."""
     boxes = []
-    for name, n, profile, counts in accounts:
+    for name, n, profile, counts, header in accounts:
         about = ""
+        if line := header_line(header):
+            about = f'<span class="header">{line}</span>'
         if profile["about"]:
             topics = "".join(
                 f'<a href="{name}/index.html#{t["id"]}">{html.escape(t["name"])} · {counts[t["id"]]}</a>'
                 for t in profile["topics"]
             )
-            about = (
+            about += (
                 f"<details><summary>About @{name}</summary><p>{html.escape(profile['about'])}</p>"
                 f'<div class="topics">{topics}</div></details>'
             )

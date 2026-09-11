@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import json
 
-from insta.topics import classify, compile_topics, load_profile
+from insta.topics import MAX_HASHTAG_TOPICS, classify, compile_topics, hashtag_topics, load_profile
 
 TOPICS = [
     {"id": "waste", "name": "Waste", "keywords": ["ricicl", "api "]},
@@ -43,3 +43,18 @@ def test_load_profile_reads_file(tmp_path):
 
 def test_load_profile_defaults_when_missing(tmp_path):
     assert load_profile(tmp_path) == {"about": "", "topics": []}
+
+
+def test_hashtag_topics_takes_tags_used_at_least_twice_most_used_first():
+    captions = ["#Casa #legno", "#casa #Legno #once", "#casa", "no tags", "#legno #casa"]
+    topics = hashtag_topics(captions)
+    assert [t["name"] for t in topics] == ["#casa", "#legno"]
+    assert topics[0] == {"id": "casa", "name": "#casa", "keywords": ["#casa "]}
+    assert classify("una #casa2 e una #casa", compile_topics(topics)) == ["casa"]
+
+
+def test_hashtag_topics_counts_a_tag_once_per_caption_and_caps_the_list():
+    captions = [" ".join(f"#t{i}" for i in range(20))] * 2 + ["#t1 #t1 #t1"]
+    topics = hashtag_topics(captions)
+    assert len(topics) == MAX_HASHTAG_TOPICS
+    assert topics[0]["id"] == "t1"  # three captions, all others two

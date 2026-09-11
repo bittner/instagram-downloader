@@ -36,3 +36,22 @@ def compile_topics(topics: list[dict]) -> list[tuple[str, re.Pattern]]:
 def classify(caption: str, compiled: list[tuple[str, re.Pattern]]) -> list[str]:
     """Return the ids of all topics whose keywords occur in the caption."""
     return [tid for tid, rx in compiled if rx.search(caption)]
+
+
+HASHTAG = re.compile(r"#(\w+)")
+MIN_HASHTAG_USES = 2
+MAX_HASHTAG_TOPICS = 12
+
+
+def hashtag_topics(captions: list[str]) -> list[dict]:
+    """Derive topics from the hashtags used most across the captions.
+
+    A fallback for accounts without a hand-written profile: every hashtag used at
+    least twice becomes a topic, the most used first, up to a dozen.
+    """
+    counts: dict[str, int] = {}
+    for caption in captions:
+        for tag in {t.lower() for t in HASHTAG.findall(caption)}:
+            counts[tag] = counts.get(tag, 0) + 1
+    tags = sorted((t for t, n in counts.items() if n >= MIN_HASHTAG_USES), key=lambda t: (-counts[t], t))
+    return [{"id": t, "name": f"#{t}", "keywords": [f"#{t} "]} for t in tags[:MAX_HASHTAG_TOPICS]]

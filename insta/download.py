@@ -72,11 +72,14 @@ def archive(
     complete.unlink(missing_ok=True)
     index: dict[str, dict] = json.loads(index_file.read_text()) if index_file.exists() else rebuild_index(out)
     items: dict[str, dict] = {}  # shortcode -> media item as sent by Instagram
-    handler = lambda r: capture_response(r, items, profile)
+    account: dict = {}  # the profile header (bio, name, counts) as sent by Instagram
+    handler = lambda r: capture_response(r, items, profile, account)
     page.on("response", handler)
 
     print(f"@{profile}: {len(index)} posts known")
     codes = collect_shortcodes(page, profile, items, known=set() if full else set(index))
+    if account:
+        write_json(out / "account.json", account_summary(account))
     if limit:
         codes = codes[:limit]
     todo = [c for c in codes if c not in index or (index[c]["video"] and not index[c]["files"])]
@@ -102,23 +105,17 @@ def archive(
         }
         if videos:
             print(f"  [{i}/{len(todo)}] {stem} ({len(videos)} video{'s' if len(videos) > 1 else ''})")
-            try:
-                for k, url in enumerate(videos, 1):
-                    name = f"{stem}.mp4" if len(videos) == 1 else f"{stem}_{k}.mp4"
-                    download(url, out / name)
-                    entry["files"].append(name)
-            except requests.RequestException as e:
-                print(f"  failed, will retry on the next run: {e}", file=sys.stderr)
+            if not save_videos(out, stem, videos, entry):
                 failed += 1
                 continue
-            (out / f"{stem}.json").write_text(json.dumps(item, indent=1, ensure_ascii=False))
+            write_json(out / f"{stem}.json", item)
         index[code] = entry
-        index_file.write_text(json.dumps(index, indent=1, ensure_ascii=False))
+        write_json(index_file, index)
         if on_progress:
             on_progress()
         time.sleep(PACE["seconds"])
 
-    index_file.write_text(json.dumps(index, indent=1, ensure_ascii=False))
+    write_json(index_file, index)
     page.remove_listener("response", handler)
     if not failed and not limit:
         complete.touch()
@@ -126,6 +123,24 @@ def archive(
     print(
         f"  done: {len(index)} posts known, {n_video} with video" + (f", {failed} failed" if failed else "")
     )
+
+
+def save_videos(out: Path, stem: str, urls: list[str], entry: dict) -> bool:
+    """Download a post's videos into the account folder; False if the post has to wait for the next run."""
+    try:
+        for k, url in enumerate(urls, 1):
+            name = f"{stem}.mp4" if len(urls) == 1 else f"{stem}_{k}.mp4"
+            download(url, out / name)
+            entry["files"].append(name)
+    except requests.RequestException as e:
+        print(f"  failed, will retry on the next run: {e}", file=sys.stderr)
+        return False
+    return True
+
+
+def write_json(path: Path, data: dict) -> None:
+    """Write data as readable JSON."""
+    path.write_text(json.dumps(data, indent=1, ensure_ascii=False))
 
 
 def rebuild_index(out: Path) -> dict[str, dict]:
@@ -302,8 +317,8 @@ def shortcode_of(href: str) -> str | None:
     return m.group(1) if m else None
 
 
-def capture_response(r, items: dict, profile: str) -> None:
-    """Harvest media items from an XHR/fetch response of the page."""
+def capture_response(r, items: dict, profile: str, account: dict | None = None) -> None:
+    """Harvest media items, and the profile header, from an XHR/fetch response of the page."""
     if "instagram.com" not in r.url or r.request.resource_type not in ("xhr", "fetch"):
         return
     try:
@@ -313,6 +328,41 @@ def capture_response(r, items: dict, profile: str) -> None:
     if MEDIA_MARKERS.search(body):
         for obj in parse_json_blobs(body):
             harvest(obj, items, profile)
+    if account is not None and not account and '"biography"' in body:
+        for obj in parse_json_blobs(body):
+            harvest_account(obj, profile, account)
+
+
+def harvest_account(obj, profile: str, account: dict) -> None:
+    """Walk any JSON structure and keep the profile's own user record with its biography."""
+    if isinstance(obj, dict):
+        if obj.get("username") == profile and "biography" in obj:
+            account.update(obj)
+            return
+        for v in obj.values():
+            harvest_account(v, profile, account)
+    elif isinstance(obj, list):
+        for v in obj:
+            harvest_account(v, profile, account)
+
+
+def account_summary(user: dict) -> dict:
+    """Reduce Instagram's user record to the fields the site shows."""
+    links = [link.get("url") for link in user.get("bio_links") or [] if link.get("url")]
+    if user.get("external_url") and user["external_url"] not in links:
+        links.insert(0, user["external_url"])
+    return {
+        "username": user.get("username"),
+        "full_name": user.get("full_name") or "",
+        "biography": user.get("biography") or "",
+        "category": user.get("category") or user.get("category_name") or "",
+        "links": links,
+        "followers": user.get("follower_count"),
+        "following": user.get("following_count"),
+        "posts": user.get("media_count"),
+        "verified": bool(user.get("is_verified")),
+        "captured": f"{datetime.now(timezone.utc):%Y-%m-%d}",
+    }
 
 
 def capture_inline(page: Page, items: dict, profile: str | None) -> None:
