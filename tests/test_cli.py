@@ -15,10 +15,19 @@ def spies(monkeypatch):
 
 
 def test_usernames_are_archived_then_site_is_built(spies, monkeypatch):
-    monkeypatch.setattr("sys.argv", ["insta", "alice", "bob", "--full", "--max", "3"])
+    monkeypatch.setattr(
+        "sys.argv", ["insta", "alice", "bob", "--full", "--max", "3", "--browser", "/opt/brave"]
+    )
     assert cli.main() == 0
-    assert spies["archive"] == ((["alice", "bob"],), {"full": True, "limit": 3})
+    assert spies["archive"] == ((["alice", "bob"],), {"full": True, "limit": 3, "browser": "/opt/brave"})
     assert spies["build"] is True
+
+
+def test_browser_defaults_to_the_environment_variable(spies, monkeypatch):
+    monkeypatch.setenv("INSTA_BROWSER", "/opt/edge")
+    monkeypatch.setattr("sys.argv", ["insta", "alice"])
+    assert cli.main() == 0
+    assert spies["archive"][1]["browser"] == "/opt/edge"
 
 
 def test_site_only_skips_the_download(spies, monkeypatch):

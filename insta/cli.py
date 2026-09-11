@@ -2,6 +2,7 @@
 """Command line interface: ``uv run insta USERNAME [USERNAME ...]``."""
 
 import argparse
+import os
 
 from insta import download, website
 
@@ -15,10 +16,16 @@ def main() -> int:
     ap.add_argument("--full", action="store_true", help="scan the whole profile, not just until known posts")
     ap.add_argument("--max", type=int, default=None, help="stop after N posts (for testing)")
     ap.add_argument("--site-only", action="store_true", help="only rebuild the HTML pages in site/")
+    ap.add_argument(
+        "--browser",
+        default=os.environ.get("INSTA_BROWSER"),
+        metavar="EXECUTABLE",
+        help="Chromium-based browser to use (default: $INSTA_BROWSER, else the first one found)",
+    )
     args = ap.parse_args()
     if not args.site_only:
         if not args.usernames:
             ap.error("USERNAME is required unless --site-only is given")
-        download.archive_all(args.usernames, full=args.full, limit=args.max)
+        download.archive_all(args.usernames, full=args.full, limit=args.max, browser=args.browser)
     website.build()
     return 0

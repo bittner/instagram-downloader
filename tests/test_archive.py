@@ -144,30 +144,69 @@ def test_goto_waits_for_login(env, capsys):
     assert page.visited == [f"{BASE}/alice/", f"{BASE}/alice/"]
 
 
-def test_ensure_chromium_returns_none_when_already_running(monkeypatch):
+def test_ensure_browser_returns_none_when_already_running(monkeypatch):
     monkeypatch.setattr(download, "cdp_alive", lambda: True)
-    assert download.ensure_chromium() is None
+    assert download.ensure_browser() is None
 
 
-def test_ensure_chromium_starts_and_waits_for_it(monkeypatch):
+def test_ensure_browser_starts_and_waits_for_it(monkeypatch):
     alive = iter([False, False, True])
     monkeypatch.setattr(download, "cdp_alive", lambda: next(alive))
     monkeypatch.setattr(download.time, "sleep", lambda _s: None)
-    monkeypatch.setattr(download.shutil, "which", lambda _n: None)
+    monkeypatch.setattr(download, "browser_command", lambda _e: ["/bin/chromium"])
     started = {}
     monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: started.setdefault("cmd", cmd) and "proc")
-    assert download.ensure_chromium() == "proc"
-    assert started["cmd"][:3] == ["nix", "run", "nixpkgs#chromium"]
+    assert download.ensure_browser("/bin/chromium") == "proc"
+    assert started["cmd"][0] == "/bin/chromium"
     assert f"--remote-debugging-port={download.CDP_PORT}" in started["cmd"]
 
 
-def test_ensure_chromium_gives_up(monkeypatch):
+def test_ensure_browser_gives_up(monkeypatch):
     monkeypatch.setattr(download, "cdp_alive", lambda: False)
     monkeypatch.setattr(download.time, "sleep", lambda _s: None)
-    monkeypatch.setattr(download.shutil, "which", lambda _n: "/bin/chromium")
+    monkeypatch.setattr(download, "browser_command", lambda _e: ["/bin/chromium"])
     monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: None)
     with pytest.raises(SystemExit):
-        download.ensure_chromium()
+        download.ensure_browser()
+
+
+@pytest.fixture
+def no_browser(monkeypatch):
+    monkeypatch.setattr(download.shutil, "which", lambda _n: None)
+    monkeypatch.setattr(download.sys, "platform", "linux")
+
+
+def test_browser_command_prefers_the_explicit_executable(no_browser):
+    assert download.browser_command("/opt/brave") == ["/opt/brave"]
+
+
+def test_browser_command_finds_a_browser_on_the_path(monkeypatch):
+    monkeypatch.setattr(download.shutil, "which", lambda n: "/usr/bin/brave" if n == "brave" else None)
+    assert download.browser_command() == ["/usr/bin/brave"]
+
+
+def test_browser_command_finds_platform_application_bundles(no_browser, monkeypatch):
+    monkeypatch.setattr(download.sys, "platform", "darwin")
+    chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    monkeypatch.setattr(download.Path, "exists", lambda self: str(self) == chrome)
+    assert download.browser_command() == [chrome]
+
+
+def test_browser_command_falls_back_to_nix(no_browser, monkeypatch):
+    monkeypatch.setattr(download.shutil, "which", lambda n: "/run/nix" if n == "nix" else None)
+    assert download.browser_command()[:3] == ["nix", "run", "nixpkgs#chromium"]
+
+
+def test_browser_command_installs_playwright_chromium_as_last_resort(no_browser, monkeypatch, capsys):
+    monkeypatch.setattr(download.Path, "exists", lambda self: False)
+    runs = []
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: runs.append(cmd))
+    chromium = type("Ch", (), {"executable_path": "/pw/chromium"})()
+    pw = type("PW", (), {"chromium": chromium, "__enter__": lambda s: s, "__exit__": lambda *_a: None})()
+    monkeypatch.setattr(download, "sync_playwright", lambda: pw)
+    assert download.browser_command() == ["/pw/chromium"]
+    assert runs[0][-3:] == ["playwright", "install", "chromium"]
+    assert "Playwright's own Chromium" in capsys.readouterr().out
 
 
 def test_cdp_alive(monkeypatch):
@@ -190,9 +229,9 @@ def test_archive_all_drives_one_page_per_account(monkeypatch):
     pw = type("PW", (), {"chromium": chromium, "__enter__": lambda s: s, "__exit__": lambda *_a: None})()
     monkeypatch.setattr(download, "sync_playwright", lambda: pw)
     proc = type("Proc", (), {"terminate": lambda _s: calls.append("terminate")})()
-    monkeypatch.setattr(download, "ensure_chromium", lambda: proc)
+    monkeypatch.setattr(download, "ensure_browser", lambda _e: proc)
     monkeypatch.setattr(download, "archive", lambda p, u, **kw: calls.append((u, kw)))
-    download.archive_all(["alice", "bob"], full=True, limit=2)
+    download.archive_all(["alice", "bob"], full=True, limit=2, browser="/bin/chromium")
     assert calls == [
         ("alice", {"full": True, "limit": 2}),
         ("bob", {"full": True, "limit": 2}),

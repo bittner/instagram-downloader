@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Archive the videos and reels of an Instagram profile via a real Chromium session.
+"""Archive the videos and reels of an Instagram profile via a real browser session.
 
-Instagram blocks scripted API clients, so this drives Chromium over the DevTools
-protocol: it scrolls the profile, collects the post data Instagram sends to the page,
+Instagram blocks scripted API clients, so this drives a Chromium-based browser over
+the DevTools protocol: it scrolls the profile, collects the post data Instagram sends to the page,
 and downloads the video files from Instagram's CDN. Only posts containing video
 (feed videos, reels, video slides in carousels) are saved, into site/USERNAME/.
 Known posts are recorded in site/USERNAME/index.json; later runs stop scanning
@@ -29,9 +29,11 @@ BASE = "https://www.instagram.com"
 MEDIA_MARKERS = re.compile(r'"(?:video_versions|carousel_media|media_type)"')
 
 
-def archive_all(usernames: list[str], *, full: bool = False, limit: int | None = None) -> None:
-    """Archive several profiles in one Chromium session, starting Chromium if needed."""
-    proc = ensure_chromium()
+def archive_all(
+    usernames: list[str], *, full: bool = False, limit: int | None = None, browser: str | None = None
+) -> None:
+    """Archive several profiles in one browser session, starting the browser if needed."""
+    proc = ensure_browser(browser)
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
         page = browser.contexts[0].new_page()
@@ -113,13 +115,66 @@ def rebuild_index(out: Path) -> dict[str, dict]:
 # ---------------------------------------------------------------- browser
 
 
-def ensure_chromium() -> subprocess.Popen | None:
-    """Return a Popen if this run started Chromium, None if one was already listening."""
+BROWSER_NAMES = (
+    "chromium",
+    "chromium-browser",
+    "google-chrome",
+    "google-chrome-stable",
+    "chrome",
+    "brave",
+    "brave-browser",
+    "microsoft-edge",
+    "msedge",
+    "vivaldi",
+    "opera",
+)
+BROWSER_APPS = {
+    "darwin": (
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        "/Applications/Vivaldi.app/Contents/MacOS/Vivaldi",
+    ),
+    "win32": (
+        r"C:\Program Files\Chromium\Application\chrome.exe",
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    ),
+}
+
+
+def browser_command(explicit: str | None = None) -> list[str]:
+    """Return the command that starts a Chromium-based browser.
+
+    Looks for the given executable first, then for the common browsers on the PATH
+    and in the platform's application folders, then for Nix, and finally falls back
+    to Playwright's own Chromium, which is downloaded on first use.
+    """
+    if explicit:
+        return [explicit]
+    for name in BROWSER_NAMES:
+        if exe := shutil.which(name):
+            return [exe]
+    for app in BROWSER_APPS.get(sys.platform, ()):
+        if Path(app).exists():
+            return [app]
+    if shutil.which("nix"):
+        return ["nix", "run", "nixpkgs#chromium", "--"]
+    print("No Chromium-based browser found; using Playwright's own Chromium...")
+    subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+    with sync_playwright() as p:
+        return [p.chromium.executable_path]
+
+
+def ensure_browser(explicit: str | None = None) -> subprocess.Popen | None:
+    """Start the browser unless one is listening; return its process if this run started it."""
     if cdp_alive():
         return None
-    exe = shutil.which("chromium") or shutil.which("chromium-browser")
-    cmd = [exe] if exe else ["nix", "run", "nixpkgs#chromium", "--"]
-    cmd += [
+    cmd = [
+        *browser_command(explicit),
         f"--user-data-dir={CHROMIUM_PROFILE}",
         "--password-store=basic",
         "--no-first-run",
@@ -131,7 +186,7 @@ def ensure_chromium() -> subprocess.Popen | None:
         time.sleep(1)
         if cdp_alive():
             return proc
-    sys.exit("Chromium did not start")
+    sys.exit("The browser did not start")
 
 
 def cdp_alive() -> bool:

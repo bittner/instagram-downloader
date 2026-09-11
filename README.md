@@ -4,7 +4,7 @@ Downloads all videos and reels of one or more Instagram accounts and builds a se
 
 ## How it works
 
-Instagram rejects scripted API clients (Instaloader, gallery-dl, yt-dlp) while a real browser session works fine. The downloader therefore drives a logged-in Chromium over the DevTools protocol: it scrolls the profile grid, harvests the post data Instagram sends to the page, and downloads the files from Instagram's CDN. Collaboration posts owned by another account are included. Re-runs only fetch new posts.
+Instagram rejects scripted API clients (Instaloader, gallery-dl, yt-dlp) while a real browser session works fine. The downloader therefore drives a logged-in Chromium-based browser over the DevTools protocol: it scrolls the profile grid, harvests the post data Instagram sends to the page, and downloads the files from Instagram's CDN. Collaboration posts owned by another account are included. Re-runs only fetch new posts.
 
 ## Usage
 
@@ -15,7 +15,9 @@ python -m http.server -d site
 
 From a checkout, `uv run insta USERNAME` does the same.
 
-Log in to Instagram in the Chromium window on the first run.
+Log in to Instagram in the browser window on the first run.
+
+Any Chromium-based browser works: Chromium, Chrome, Brave, Edge, Vivaldi or Opera are found automatically on Linux, macOS and Windows; `--browser EXECUTABLE` or `INSTA_BROWSER` selects one explicitly. Without any, Playwright's own Chromium is downloaded on first use. Firefox and Safari are not supported, as they lack the DevTools protocol the tool relies on.
 
 An optional `site/USERNAME/profile.json` with an `about` text and a list of topics (name plus caption keywords) adds an "About" box to the overview and topic filters to the account page. Keywords match at the start of a word; a trailing space makes a keyword match whole words only.
 
