@@ -165,3 +165,22 @@ def test_filter_chips_sit_in_the_sticky_header(site):
     website.build()
     account = (site / "alice" / "index.html").read_text()
     assert account.index("<header>") < account.index('<div class="chips">') < account.index("</header>")
+
+
+def test_photos_are_rendered_as_images_and_posts_get_a_type(site):
+    index = dict(INDEX, pic=dict(INDEX["pic"], files=["2024-01-02_pic.jpg"]))
+    (site / "alice" / "index.json").write_text(json.dumps(index))
+    website.build()
+    account = (site / "alice" / "index.html").read_text()
+    assert '<img src="2024-01-02_pic.jpg" loading="lazy" alt="">' in account
+    for kind in ("photo", "video", "carousel"):
+        assert f'data-type="{kind}"' in account
+    assert '<button data-type="carousel">Carousels · 1</button>' in account
+    assert '<button data-type="all">All · 3</button>' in account
+
+
+def test_post_type():
+    assert website.post_type(["a.jpg"]) == "photo"
+    assert website.post_type(["a.mp4"]) == "video"
+    assert website.post_type(["a_1.jpg", "a_2.mp4"]) == "carousel"
+    assert website.post_type([]) == "photo"

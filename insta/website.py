@@ -23,7 +23,11 @@ CSS = """
 body{font-family:system-ui,sans-serif;margin:0;background:#fafafa;color:#222}
 header{padding:1rem 2rem 0;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:10;
  transition:transform .25s ease}
-header .bar{padding-bottom:1rem}
+header .bar{padding-bottom:1rem;display:flex;align-items:center;gap:.3rem}
+header .types{margin-left:auto;display:flex;gap:.3rem}
+header .types button{font-size:.8rem;border:1px solid #ccc;border-radius:999px;padding:.2rem .7rem;
+ background:#f4f4f4;color:#444;cursor:pointer}
+header .types button.active{background:#222;color:#fff;border-color:#222}
 header.away{transform:translateY(-100%)}
 header a{color:inherit;text-decoration:none}
 main{padding:1rem 2rem;max-width:1400px;margin:auto}
@@ -83,11 +87,21 @@ document.querySelectorAll('.slides').forEach(s=>{
  const end=()=>{if(x0===null)return;x0=null;track.classList.remove('dragging');
   Math.abs(dx)>s.clientWidth/6?go(i-Math.sign(dx)):place();};
  track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);});
-function apply(t){chips.forEach(b=>b.classList.toggle('active',b.dataset.topic===t));
- cards.forEach(c=>c.hidden=t!=='all'&&!(' '+c.dataset.topics+' ').includes(' '+t+' '));
- history.replaceState(null,'',t==='all'?location.pathname:'#'+t);}
-chips.forEach(b=>b.onclick=()=>apply(b.dataset.topic));
-apply(location.hash.slice(1)||'all');
+const typeBtns=document.querySelectorAll('.types button');let state={topic:'all',type:'all'};
+function apply(){chips.forEach(b=>b.classList.toggle('active',b.dataset.topic===state.topic));
+ typeBtns.forEach(b=>b.classList.toggle('active',b.dataset.type===state.type));
+ cards.forEach(c=>c.hidden=(state.topic!=='all'&&!(' '+c.dataset.topics+' ').includes(' '+state.topic+' '))
+  ||(state.type!=='all'&&c.dataset.type!==state.type));
+ const q=new URLSearchParams();if(state.topic!=='all')q.set('topic',state.topic);
+ if(state.type!=='all')q.set('type',state.type);
+ history.replaceState(null,'',q.size?'#'+q:location.pathname);}
+chips.forEach(b=>b.onclick=()=>{state.topic=b.dataset.topic;apply();});
+typeBtns.forEach(b=>b.onclick=()=>{state.type=b.dataset.type;apply();});
+const h=location.hash.slice(1);
+if(h.includes('=')){const q=new URLSearchParams(h);state.topic=q.get('topic')||'all';
+ state.type=q.get('type')||'all';}
+else if(h){state.topic=h;}
+apply();
 """
 
 
@@ -115,6 +129,23 @@ def build(*, quiet: bool = False) -> None:
         print(f"site: {len(accounts)} accounts -> {SITE / 'index.html'}")
 
 
+def post_type(files: list[str]) -> str:
+    """Classify a post by its files: carousel, video or photo."""
+    if len(files) > 1:
+        return "carousel"
+    return "video" if files and files[0].endswith(".mp4") else "photo"
+
+
+TYPES = (("all", "All"), ("photo", "Photos"), ("video", "Videos"), ("carousel", "Carousels"))
+
+
+def medium(filename: str) -> str:
+    """The HTML element showing one media file: a video player or an image."""
+    if filename.endswith(".mp4"):
+        return f'<video controls preload="metadata" src="{html.escape(filename)}"></video>'
+    return f'<img src="{html.escape(filename)}" loading="lazy" alt="">'
+
+
 def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> None:
     """Write the page of one account with its video cards and topic filter chips."""
     names = {t["id"]: t["name"] for t in profile["topics"]}
@@ -130,10 +161,14 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
             )
         tags = "".join(f"<span>{html.escape(names[t])}</span>" for t in topics)
         cards.append(
-            f'<div class="card" data-topics="{" ".join(topics)}">{videos}<div class="meta">'
+            f'<div class="card" data-topics="{" ".join(topics)}" data-type="{post_type(e["files"])}">'
+            f'{videos}<div class="meta">'
             f'<time>{e["date"]}</time> · <a href="https://www.instagram.com/p/{code}/">instagram</a>'
             f'<p>{linkify(e["caption"])}</p><div class="tags">{tags}</div></div></div>'
         )
+    counts_by_type = {t: sum(1 for _, e, _ in posts if post_type(e["files"]) == t) for t, _ in TYPES}
+    counts_by_type["all"] = len(posts)
+    types = "".join(f'<button data-type="{t}">{label} · {counts_by_type[t]}</button>' for t, label in TYPES)
     chips = ""
     if profile["topics"]:
         chips = (
