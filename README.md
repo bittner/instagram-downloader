@@ -9,9 +9,11 @@ Instagram rejects scripted API clients (Instaloader, gallery-dl, yt-dlp) while a
 ## Usage
 
 ```sh
-uv run insta USERNAME
+uvx instagram-offline USERNAME
 python -m http.server -d site
 ```
+
+From a checkout, `uv run insta USERNAME` does the same.
 
 Log in to Instagram in the Chromium window on the first run.
 

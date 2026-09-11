@@ -39,6 +39,7 @@ unittest = [
 
 [project.scripts]
 insta = "insta.cli:main"
+instagram-offline = "insta.cli:main"
 
 [tool.coverage.report]
 exclude_also = ["if __name__ == .__main__.:"]

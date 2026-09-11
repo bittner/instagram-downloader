@@ -9,7 +9,6 @@ from insta import download, website
 def main() -> int:
     """Parse the command line, archive the accounts and rebuild the site."""
     ap = argparse.ArgumentParser(
-        prog="insta",
         description="Download all videos and reels of Instagram accounts and build a local site.",
     )
     ap.add_argument("usernames", nargs="*", metavar="USERNAME", help="Instagram account(s) to archive")
