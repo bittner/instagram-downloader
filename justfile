@@ -18,7 +18,7 @@ all: codestyle types test-pythons clean
 # Remove build artifacts and reports (use -v for verbose, -n for dry-run)
 [group('lifecycle')]
 clean *args:
-    uvx pyclean . {{ args }} --debris all --erase .coverage coverage.xml 'dist/*' dist --yes
+    uvx pyclean . {{ args }} --debris all
 
 # Check Python dependencies are up-to-date (uv.lock)
 [group('lifecycle')]
