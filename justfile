@@ -67,7 +67,7 @@ package *args:
 ensure_version_matches tag:
     uv run python -c '\
     from importlib.metadata import version ;\
-    ver = version("instagram-downloader") ;\
+    ver = version("instagram-offline") ;\
     tag = "{{ tag }}".removeprefix("v") ;\
     error = f"`{ver}` != `{tag}`" ;\
     abort = f"Package version does not match the Git tag ({error}). ABORTING." ;\

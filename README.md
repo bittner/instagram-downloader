@@ -1,4 +1,4 @@
-# instagram-downloader [![Vibe coded responsibly][badge]][contributing]
+# instagram-offline [![Vibe coded responsibly][badge]][contributing]
 
 Downloads all videos and reels of one or more Instagram accounts and builds a self-contained static site in `site/`, one folder per account.
 

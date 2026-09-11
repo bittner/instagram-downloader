@@ -1,5 +1,5 @@
 {
-  description = "Dev shell for instagram-downloader";
+  description = "Dev shell for instagram-offline";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
