@@ -77,3 +77,5 @@ with it. Nothing in this document constitutes legal advice.
 [badge]: https://img.shields.io/badge/vibe_coded-responsibly-ff69b4?logo=claude&logoColor=white
 [pypi]: https://pypi.org/project/instagram-offline/
 [contributing]: CONTRIBUTING.md
+[reuse]: https://api.reuse.software/badge/github.com/bittner/instagram-offline
+[reuse-info]: https://api.reuse.software/info/github.com/bittner/instagram-offline
