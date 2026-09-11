@@ -55,3 +55,26 @@ test-pythons *v='3.10 3.11 3.12 3.13 3.14':
 [group('tests')]
 coverage:
     uvx coverage[toml] report
+
+# Build the Python package and check its metadata renders for PyPI
+[group('release')]
+package *args:
+    uv build {{ args }}
+    uvx twine check dist/*.whl dist/*.tar.gz
+
+# Verify the package version is the same as the Git tag
+[group('release')]
+ensure_version_matches tag:
+    uv run python -c '\
+    from importlib.metadata import version ;\
+    ver = version("instagram-downloader") ;\
+    tag = "{{ tag }}".removeprefix("v") ;\
+    error = f"`{ver}` != `{tag}`" ;\
+    abort = f"Package version does not match the Git tag ({error}). ABORTING." ;\
+    raise SystemExit(0 if ver and tag and ver == tag else abort)'
+
+# Build and upload the package to PyPI (use UV_PUBLISH_URL to target a different index)
+[group('release')]
+publish: package
+    just ensure_version_matches ${GIT_TAG}
+    uv publish
