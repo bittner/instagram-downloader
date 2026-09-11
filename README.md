@@ -6,7 +6,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # instagram-offline [![Python package][version]][pypi] [![REUSE status][reuse]][reuse-info] [![Vibe coded][badge]][contributing]
 
-Downloads all videos and reels of one or more Instagram accounts and builds a self-contained static
+Downloads all posts, photos as well as videos and reels, of one or more Instagram accounts and builds a self-contained static
 site in `site/`, one folder per account. Watch the creators you chose distraction-free, without ads,
 autoplay or an algorithmic feed. Keep a usable archive of your own work, which Meta's data export
 does not easily provide.

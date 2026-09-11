@@ -96,7 +96,14 @@ def test_archive_scans_grid_fetches_details_and_writes_index(env):
     assert index["a"]["files"] == ["1970-01-01_a.mp4"]
     assert (env / "alice" / "1970-01-01_a.mp4").read_text() == "cdn/a"
     assert json.loads((env / "alice" / "1970-01-01_a.json").read_text())["code"] == "a"
-    assert index["b"] == {"date": "1970-01-01", "taken_at": 0, "video": False, "files": [], "caption": ""}
+    assert index["b"] == {
+        "date": "1970-01-01",
+        "taken_at": 0,
+        "video": False,
+        "media": 0,
+        "files": [],
+        "caption": "",
+    }
     assert index["c"]["video"] is True  # co-authored post accepted from its own page
     assert f"{BASE}/p/a/" in page.visited
 
@@ -105,7 +112,16 @@ def test_archive_uses_captured_responses_and_skips_known_posts(env):
     (env / "alice").mkdir()
     (env / "alice" / "index.json").write_text(
         json.dumps(
-            {"old": {"date": "1970-01-01", "taken_at": 1, "video": True, "files": ["x.mp4"], "caption": ""}}
+            {
+                "old": {
+                    "date": "1970-01-01",
+                    "taken_at": 1,
+                    "video": True,
+                    "media": 1,
+                    "files": ["x.mp4"],
+                    "caption": "",
+                }
+            }
         )
     )
     page = FakePage(["new", "old"], {})
@@ -270,6 +286,18 @@ def test_the_site_is_rebuilt_as_soon_as_the_profile_header_is_captured(env):
     ticks = []
     download.archive(page, "alice", full=True, limit=None, on_progress=lambda: ticks.append(1))
     assert ticks == [1]  # no posts, but one rebuild for the header
+
+
+def test_incomplete_posts_force_a_full_scan_despite_the_marker(env):
+    posts = {f"p{i}": item(f"p{i}", taken_at=100 - i) for i in range(20)}
+    download.archive(FakePage(list(posts), posts), "alice", full=True, limit=None)
+    index = json.loads((env / "alice" / "index.json").read_text())
+    index["p19"]["files"] = []  # an old post archived without its photo, at the bottom of the grid
+    (env / "alice" / "index.json").write_text(json.dumps(index))
+    page = FakePage(list(posts), posts)
+    download.archive(page, "alice", full=False, limit=None)
+    assert page.scrolls >= 10  # scanned to the end instead of stopping at the known newest posts
+    assert json.loads((env / "alice" / "index.json").read_text())["p19"]["files"] == ["1970-01-01_p19.mp4"]
 
 
 def test_archive_stops_early_only_after_a_complete_run(env, capsys):

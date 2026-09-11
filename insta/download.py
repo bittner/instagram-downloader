@@ -1,12 +1,11 @@
 # SPDX-FileCopyrightText: 2026 Peter Bittner <django@bittner.it>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Archive the videos and reels of an Instagram profile via a real browser session.
+"""Archive the posts of an Instagram profile via a real browser session.
 
 Instagram blocks scripted API clients, so this drives a Chromium-based browser over
 the DevTools protocol: it scrolls the profile, collects the post data Instagram sends to the page,
-and downloads the video files from Instagram's CDN. Only posts containing video
-(feed videos, reels, video slides in carousels) are saved, into site/USERNAME/.
+and downloads the photos and videos from Instagram's CDN into site/USERNAME/.
 Known posts are recorded in site/USERNAME/index.json; later runs stop scanning
 once they reach known posts and only download what is new.
 """
@@ -71,9 +70,10 @@ def archive(
         part.unlink()
     index_file = out / "index.json"
     complete = out / ".complete"  # present once a run has gone through the whole profile
-    full = full or not complete.exists()
-    complete.unlink(missing_ok=True)
     index: dict[str, dict] = json.loads(index_file.read_text()) if index_file.exists() else rebuild_index(out)
+    done = {c for c in index if not needs_fetch(index, c, out)}
+    full = full or not complete.exists() or len(done) < len(index)  # incomplete posts may sit anywhere
+    complete.unlink(missing_ok=True)
     items: dict[str, dict] = {}  # shortcode -> media item as sent by Instagram
     account: dict = {}  # the profile header (bio, name, counts) as sent by Instagram
     handler = lambda r: capture_response(r, items, profile, account)
@@ -81,18 +81,18 @@ def archive(
 
     print(f"@{profile}: {len(index)} posts known")
     run = Run(page, out, index, items, on_progress)
-    pending = [c for c in load_pending(out) if c not in index]
+    pending = [c for c in load_pending(out) if needs_fetch(index, c, out)]
     if pending:
         print(f"  {len(pending)} posts pending from the previous run, fetching them first")
         run.process_all(pending, fresh=True)
-    codes = collect_shortcodes(page, profile, items, known=set() if full else set(index))
+    codes = collect_shortcodes(page, profile, items, known=set() if full else done)
     if account:
         write_json(out / "account.json", account_summary(account))
         if on_progress:
             on_progress()  # show the profile header on the site right away
     if limit:
         codes = codes[:limit]
-    todo = [c for c in codes if needs_fetch(index, c) and c not in run.queued]
+    todo = [c for c in codes if needs_fetch(index, c, out) and c not in run.queued]
     if not full and not todo:
         print(f"  {len(codes)} newest posts scanned, all known already, nothing new to fetch")
     else:
@@ -110,9 +110,22 @@ def archive(
     print(f"  done: {len(index)} posts known, {n_video} with video{failed}")
 
 
-def needs_fetch(index: dict, code: str) -> bool:
-    """Whether a post is not archived yet: unknown, or known as a video without its files."""
-    return code not in index or (index[code]["video"] and not index[code]["files"])
+def needs_fetch(index: dict, code: str, out: Path) -> bool:
+    """Whether a post is not fully archived yet: unknown, or with fewer files than media."""
+    if code not in index:
+        return True
+    entry = index[code]
+    return len(entry["files"]) < expected_media(entry, code, out)
+
+
+def expected_media(entry: dict, code: str, out: Path) -> int:
+    """The number of media files a post should have, from the index or the stored post data."""
+    if "media" in entry:
+        return entry["media"]
+    stored = out / f"{entry['date']}_{code}.json"  # written by older versions for video posts only
+    if stored.exists():
+        return media_count(json.loads(stored.read_text()))
+    return 1
 
 
 def load_pending(out: Path) -> list[str]:
@@ -151,7 +164,7 @@ class Run:
 
     def save_pending(self) -> None:
         """Record the queued posts that are not archived yet, so the next run can start with them."""
-        pending = [c for c in dict.fromkeys(self.queued) if needs_fetch(self.index, c)]
+        pending = [c for c in dict.fromkeys(self.queued) if needs_fetch(self.index, c, self.out)]
         f = self.out / "pending.json"
         if pending:
             write_json(f, pending)
@@ -168,18 +181,19 @@ class Run:
             return "skip"
         date = datetime.fromtimestamp(item.get("taken_at", 0), timezone.utc)
         stem = f"{date:%Y-%m-%d}_{code}"
-        videos = video_urls(item)
+        media = media_urls(item)
         entry = {
             "date": f"{date:%Y-%m-%d}",
             "taken_at": item.get("taken_at", 0),
-            "video": bool(videos),
+            "video": any(kind == "video" for kind, _ in media),
+            "media": len(media),
             "files": [],
             "caption": caption(item),
         }
-        if videos:
-            print(f"  {label} {stem} ({len(videos)} video{'s' if len(videos) > 1 else ''})")
+        if media:
+            print(f"  {label} {stem} ({describe(media)})")
             try:
-                save_videos(self.out, stem, videos, entry)
+                save_media(self.out, stem, media, entry)
             except TransientError as e:
                 return self.defer(code, str(e))
             except requests.RequestException as e:
@@ -219,12 +233,25 @@ class Run:
                 return
 
 
-def save_videos(out: Path, stem: str, urls: list[str], entry: dict) -> None:
-    """Download a post's videos into the account folder, recording each file in the index entry."""
-    for k, url in enumerate(urls, 1):
-        name = f"{stem}.mp4" if len(urls) == 1 else f"{stem}_{k}.mp4"
+EXTENSION = {"video": "mp4", "image": "jpg"}
+
+
+def save_media(out: Path, stem: str, media: list[tuple[str, str]], entry: dict) -> None:
+    """Download a post's photos and videos into the account folder, recording each file in the entry."""
+    for k, (kind, url) in enumerate(media, 1):
+        name = f"{stem}.{EXTENSION[kind]}" if len(media) == 1 else f"{stem}_{k}.{EXTENSION[kind]}"
         download(url, out / name)
         entry["files"].append(name)
+
+
+def describe(media: list[tuple[str, str]]) -> str:
+    """Summarise a post's media, e.g. "2 photos, 1 video"."""
+    parts = []
+    for kind, noun in (("image", "photo"), ("video", "video")):
+        n = sum(1 for k, _ in media if k == kind)
+        if n:
+            parts.append(f"{n} {noun}{'s' if n > 1 else ''}")
+    return ", ".join(parts)
 
 
 def write_json(path: Path, data: dict | list) -> None:
@@ -238,11 +265,12 @@ def rebuild_index(out: Path) -> dict[str, dict]:
     for f in sorted(out.glob("????-??-??_*.json")):
         item = json.loads(f.read_text())
         code, date = item["code"], f.name[:10]
-        files = sorted(p.name for p in out.glob(f"{date}_{code}*.mp4"))
+        files = sorted(p.name for ext in EXTENSION.values() for p in out.glob(f"{date}_{code}*.{ext}"))
         index[code] = {
             "date": date,
             "taken_at": item.get("taken_at", 0),
-            "video": bool(files),
+            "video": any(f.endswith(".mp4") for f in files),
+            "media": media_count(item),
             "files": files,
             "caption": caption(item),
         }
@@ -497,29 +525,36 @@ def harvest(obj, items: dict, profile: str | None) -> None:
 
 
 def needs_detail(item: dict) -> bool:
-    """True if the captured item lacks the fields needed to download it."""
-    mt = item.get("media_type")
-    if mt == 1:
-        return False
-    if mt == 2:
-        return not item.get("video_versions")
-    if mt == 8:
-        return not item.get("carousel_media") or any(
-            m.get("media_type") == 2 and not m.get("video_versions") for m in item["carousel_media"]
-        )
-    return True
+    """True if the captured item lacks the fields needed to download all of its media."""
+    slides = item.get("carousel_media") if item.get("media_type") == CAROUSEL else [item]
+    return not slides or any(best_url(m) is None for m in slides)
 
 
-def video_urls(item: dict) -> list[str]:
-    """Return the best video URL of a post, or one per video slide of a carousel."""
+IMAGE, VIDEO, CAROUSEL = 1, 2, 8
 
-    def best(m):
-        vv = m.get("video_versions") or []
-        return max(vv, key=lambda v: v.get("width", 0))["url"] if vv else None
 
-    if item.get("media_type") == 8:
-        return [u for m in item.get("carousel_media", []) if (u := best(m))]
-    return [u] if (u := best(item)) else []
+def best_url(m: dict) -> tuple[str, str] | None:
+    """The kind and the largest rendition URL of a single medium, None if the item has none."""
+    if m.get("media_type") == VIDEO:
+        versions = m.get("video_versions") or []
+        kind = "video"
+    elif m.get("media_type") == IMAGE:
+        versions = (m.get("image_versions2") or {}).get("candidates") or []
+        kind = "image"
+    else:
+        return None
+    return (kind, max(versions, key=lambda v: v.get("width", 0))["url"]) if versions else None
+
+
+def media_urls(item: dict) -> list[tuple[str, str]]:
+    """Return (kind, url) for the post's medium, or for each slide of a carousel, in order."""
+    slides = item.get("carousel_media", []) if item.get("media_type") == CAROUSEL else [item]
+    return [u for m in slides if (u := best_url(m))]
+
+
+def media_count(item: dict) -> int:
+    """The number of media a post has: its slides for a carousel, one otherwise."""
+    return len(item.get("carousel_media") or []) if item.get("media_type") == CAROUSEL else 1
 
 
 def caption(item: dict) -> str:

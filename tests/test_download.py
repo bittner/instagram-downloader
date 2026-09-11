@@ -16,12 +16,21 @@ VIDEO = {
     "caption": {"text": "hello"},
     "video_versions": [{"width": 640, "url": "u640"}, {"width": 1080, "url": "u1080"}],
 }
-IMAGE = {"code": "img", "media_type": 1, "user": {"username": "alice"}}
+IMAGE = {
+    "code": "img",
+    "media_type": 1,
+    "user": {"username": "alice"},
+    "image_versions2": {"candidates": [{"width": 640, "url": "i640"}, {"width": 1080, "url": "i1080"}]},
+}
+BARE_IMAGE = {"code": "bare", "media_type": 1, "user": {"username": "alice"}}
 CAROUSEL = {
     "code": "car",
     "media_type": 8,
     "user": {"username": "alice"},
-    "carousel_media": [{"media_type": 1}, {"media_type": 2, "video_versions": [{"width": 1, "url": "c2"}]}],
+    "carousel_media": [
+        {"media_type": 1, "image_versions2": {"candidates": [{"width": 1, "url": "c1"}]}},
+        {"media_type": 2, "video_versions": [{"width": 1, "url": "c2"}]},
+    ],
 }
 COLLAB = {
     "code": "col",
@@ -66,6 +75,7 @@ def test_harvest_prefers_the_richer_item():
 
 def test_needs_detail():
     assert download.needs_detail(IMAGE) is False
+    assert download.needs_detail(BARE_IMAGE) is True
     assert download.needs_detail(VIDEO) is False
     assert download.needs_detail({"code": "v", "media_type": 2}) is True
     assert download.needs_detail(CAROUSEL) is False
@@ -75,10 +85,18 @@ def test_needs_detail():
     assert download.needs_detail({"code": "?"}) is True
 
 
-def test_video_urls_picks_widest_and_carousel_videos():
-    assert download.video_urls(VIDEO) == ["u1080"]
-    assert download.video_urls(CAROUSEL) == ["c2"]
-    assert download.video_urls(IMAGE) == []
+def test_media_urls_picks_the_largest_rendition_of_each_medium_in_order():
+    assert download.media_urls(VIDEO) == [("video", "u1080")]
+    assert download.media_urls(IMAGE) == [("image", "i1080")]
+    assert download.media_urls(CAROUSEL) == [("image", "c1"), ("video", "c2")]
+    assert download.media_urls(BARE_IMAGE) == []
+
+
+def test_media_count_and_describe():
+    assert download.media_count(CAROUSEL) == 2
+    assert download.media_count(IMAGE) == 1
+    assert download.describe([("image", "a"), ("image", "b"), ("video", "c")]) == "2 photos, 1 video"
+    assert download.describe([("video", "c")]) == "1 video"
 
 
 def test_caption_handles_dict_string_and_missing():
@@ -102,10 +120,13 @@ def test_rebuild_index_from_post_files(tmp_path):
         "date": "2023-11-14",
         "taken_at": 1700000000,
         "video": True,
+        "media": 1,
         "files": ["2023-11-14_abc.mp4"],
         "caption": "hello",
     }
     assert index["img"]["video"] is False
+    (tmp_path / "2023-11-14_img.jpg").write_bytes(b"")
+    assert download.rebuild_index(tmp_path)["img"]["files"] == ["2023-11-14_img.jpg"]
 
 
 class Response:
@@ -267,9 +288,26 @@ def test_capture_response_captures_the_account_once(monkeypatch):
     assert account["biography"] == "Hi\nthere"  # the first capture stands
 
 
-def test_save_videos_records_each_file(tmp_path, monkeypatch):
+def test_save_media_names_files_by_slide_and_kind(tmp_path, monkeypatch):
     monkeypatch.setattr(download, "download", lambda url, path: path.write_text(url))
     entry = {"files": []}
-    download.save_videos(tmp_path, "2024-01-01_x", ["a", "b"], entry)
-    download.save_videos(tmp_path, "2024-01-01_y", ["c"], entry)
-    assert entry["files"] == ["2024-01-01_x_1.mp4", "2024-01-01_x_2.mp4", "2024-01-01_y.mp4"]
+    download.save_media(tmp_path, "2024-01-01_x", [("image", "a"), ("video", "b")], entry)
+    download.save_media(tmp_path, "2024-01-01_y", [("image", "c")], entry)
+    assert entry["files"] == ["2024-01-01_x_1.jpg", "2024-01-01_x_2.mp4", "2024-01-01_y.jpg"]
+
+
+def test_needs_fetch_counts_files_against_expected_media(tmp_path):
+    index = {
+        "done": {"date": "2024-01-01", "media": 2, "files": ["a", "b"], "video": True},
+        "half": {"date": "2024-01-01", "media": 2, "files": ["a"], "video": True},
+        "old_photo": {"date": "2024-01-01", "files": [], "video": False},
+        "old_video": {"date": "2024-01-01", "files": ["v.mp4"], "video": True},
+        "old_mixed": {"date": "2024-01-01", "files": ["v.mp4"], "video": True},
+    }
+    (tmp_path / "2024-01-01_old_mixed.json").write_text(json.dumps(CAROUSEL))
+    assert download.needs_fetch(index, "done", tmp_path) is False
+    assert download.needs_fetch(index, "half", tmp_path) is True
+    assert download.needs_fetch(index, "old_photo", tmp_path) is True  # archived before photos were saved
+    assert download.needs_fetch(index, "old_video", tmp_path) is False
+    assert download.needs_fetch(index, "old_mixed", tmp_path) is True  # the photo slide is missing
+    assert download.needs_fetch(index, "unknown", tmp_path) is True

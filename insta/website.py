@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Build the HTML pages of the static website in site/.
 
-Each site/USERNAME/ folder holds the downloaded videos and an index.json; this adds
-one page per account with all its videos, newest first, plus an overview page. An
+Each site/USERNAME/ folder holds the downloaded photos and videos and an index.json; this
+adds one page per account with all its posts, newest first, plus an overview page. An
 optional profile.json per account adds an "About" text and topic filters. The folder
 is a self-contained static site that can be opened locally or deployed as is.
 """
@@ -30,10 +30,11 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
 .card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden}
 .card video{width:100%;aspect-ratio:9/16;background:#000;display:block}
+.card img{width:100%;display:block;background:#000}
 .slides{position:relative;overflow:hidden}
 .track{display:flex;transition:transform .35s ease;touch-action:pan-y;cursor:grab}
 .track.dragging{transition:none;cursor:grabbing}
-.track video{flex:0 0 100%}
+.track video,.track img{flex:0 0 100%}
 .slides button{position:absolute;top:50%;transform:translateY(-50%);width:2.2rem;height:2.2rem;border:0;
  border-radius:50%;background:rgba(255,255,255,.85);color:#222;font-size:1.2rem;cursor:pointer}
 .slides .prev{left:.5rem}.slides .next{right:.5rem}
@@ -71,9 +72,9 @@ main{padding:1rem 2rem;max-width:1400px;margin:auto}
 JS = """
 const chips=document.querySelectorAll('.chips button'),cards=document.querySelectorAll('.card');
 document.querySelectorAll('.slides').forEach(s=>{
- const track=s.querySelector('.track'),v=track.querySelectorAll('video');let i=0,x0=null,dx=0;
+ const track=s.querySelector('.track'),v=track.querySelectorAll('video,img');let i=0,x0=null,dx=0;
  const place=(px=0)=>track.style.transform=`translateX(calc(${-i*100}% + ${px}px))`;
- const go=n=>{v[i].pause();i=(n+v.length)%v.length;place();
+ const go=n=>{v[i].pause?.();i=(n+v.length)%v.length;place();
   s.querySelector('.count').textContent=`${i+1} / ${v.length}`;};
  s.querySelector('.prev').onclick=()=>go(i-1);s.querySelector('.next').onclick=()=>go(i+1);
  track.addEventListener('pointerdown',e=>{if(e.button)return;x0=e.clientX;dx=0;
@@ -119,9 +120,7 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
     names = {t["id"]: t["name"] for t in profile["topics"]}
     cards = []
     for code, e, topics in posts:
-        videos = "".join(
-            f'<video controls preload="metadata" src="{html.escape(f)}"></video>' for f in e["files"]
-        )
+        videos = "".join(medium(f) for f in e["files"])
         if len(e["files"]) > 1:
             videos = (
                 f'<div class="slides"><div class="track">{videos}</div>'
@@ -149,7 +148,7 @@ def write_account_page(name: str, posts: list, profile: dict, counts: dict) -> N
         SITE / name / "index.html",
         f"@{name}",
         f'<header><div class="bar"><a href="../index.html">← all accounts</a> · <b>@{name}</b> · '
-        f"{len(posts)} videos</div>{chips}</header>"
+        f'{len(posts)} posts<span class="types">{types}</span></div>{chips}</header>'
         f'<main><div class="grid">{"".join(cards)}</div></main><script>{JS}</script>',
     )
 
@@ -217,7 +216,7 @@ def write_overview(accounts: list) -> None:
                 f'<p class="facts">{header_facts(header)}</p><div class="topics">{topics}</div></details>'
             )
         boxes.append(
-            f'<div class="account"><a href="{name}/index.html"><b>@{name}</b> · {n} videos</a>{about}</div>'
+            f'<div class="account"><a href="{name}/index.html"><b>@{name}</b> · {n} posts</a>{about}</div>'
         )
     page(
         SITE / "index.html",

@@ -9,7 +9,7 @@ requires = ["setuptools>=77", "setuptools_scm>=9"]
 [project]
 name = "instagram-offline"
 dynamic = ["version"]
-description = "Download videos and reels from Instagram accounts into a browsable local site"
+description = "Download the photos, videos and reels of Instagram accounts into a browsable local site"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]

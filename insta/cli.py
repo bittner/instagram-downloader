@@ -16,7 +16,7 @@ REBUILD_INTERVAL = 30  # seconds between site rebuilds while downloading
 def main() -> int:
     """Parse the command line, archive the accounts and rebuild the site."""
     ap = argparse.ArgumentParser(
-        description="Download all videos and reels of Instagram accounts and build a local site.",
+        description="Download all posts of Instagram accounts, photos and videos, and build a local site.",
     )
     ap.add_argument("usernames", nargs="*", metavar="USERNAME", help="Instagram account(s) to archive")
     ap.add_argument("--full", action="store_true", help="scan the whole profile, not just until known posts")

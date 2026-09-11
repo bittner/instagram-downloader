@@ -39,7 +39,7 @@ def test_build_writes_overview_and_account_page(site, capsys):
     website.build()
     overview = (site / "index.html").read_text()
     account = (site / "alice" / "index.html").read_text()
-    assert "@alice</b> · 2 videos" in overview
+    assert "@alice</b> · 2 posts" in overview
     assert "<details>" not in overview
     assert account.index("2024-02-01_new.mp4") < account.index("2024-01-01_old_1.mp4")
     assert (
