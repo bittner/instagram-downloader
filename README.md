@@ -15,4 +15,4 @@ python -m http.server -d site
 
 Log in to Instagram in the Chromium window on the first run.
 
-`site/` is ignored here; keep it as a separate private Git repository with `*.mp4` tracked by git-lfs. See [CONTRIBUTING.md](CONTRIBUTING.md).
+`site/` is ignored here; keep it as a separate private Git repository. See [CONTRIBUTING.md](CONTRIBUTING.md).

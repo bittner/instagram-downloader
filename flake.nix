@@ -10,7 +10,7 @@
     in {
       devShells = forAll (pkgs: {
         default = pkgs.mkShell {
-          packages = [ pkgs.uv pkgs.chromium pkgs.ffmpeg pkgs.git-lfs ];
+          packages = [ pkgs.uv pkgs.chromium pkgs.ffmpeg ];
         };
       });
     };

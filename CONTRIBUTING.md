@@ -10,14 +10,13 @@ uvx pyclean .
 
 ## Content repository
 
-The generated `site/` folder is not part of this repository. Track it separately as a private, local repository with the videos in git-lfs:
+The generated `site/` folder is not part of this repository. Track it separately as a private, local repository. The videos are ignored there; only the metadata, index and HTML pages are versioned:
 
 ```sh
 cd site
 git init
-git lfs install --local
-git lfs track '*.mp4'
-git add .gitattributes .
+printf '*.mp4\n*.part\n' > .gitignore
+git add .
 git commit -m "Add archive"
 ```
 
