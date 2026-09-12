@@ -63,9 +63,10 @@ footer a{color:#666}
 .lightbox{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.93);display:flex;align-items:center;
  justify-content:center}
 .lightbox[hidden]{display:none}
-.lightbox .stage{touch-action:pan-y;user-select:none}
-.lightbox .stage img,.lightbox .stage video{display:block;max-width:96vw;max-height:94vh;object-fit:contain;
- -webkit-user-drag:none}
+.lightbox .stage{width:96vw;overflow:hidden;touch-action:pan-y;user-select:none}
+.lightbox .track{display:flex;transition:transform .35s ease;cursor:grab}
+.lightbox .track.dragging{transition:none;cursor:grabbing}
+.lightbox .track>*{flex:0 0 100%;width:100%;height:94vh;object-fit:contain;display:block;-webkit-user-drag:none}
 .lightbox button{position:absolute;border:0;border-radius:50%;background:rgba(255,255,255,.85);color:#222;
  cursor:pointer;width:2.6rem;height:2.6rem;font-size:1.4rem}
 .lightbox .prev{left:1rem;top:50%;transform:translateY(-50%)}

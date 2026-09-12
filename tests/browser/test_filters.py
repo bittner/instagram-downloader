@@ -108,19 +108,19 @@ def test_lightbox_enlarges_photos_and_videos_alike(browser, account_page):
     assert box.is_hidden()
     page.click('.card[data-type="photo"] .media img')
     assert box.is_visible()
-    assert page.locator(".lightbox .stage img").get_attribute("src") == "p.jpg"
+    assert page.locator(".lightbox .track > .shown").get_attribute("src") == "p.jpg"
     assert page.locator(".lightbox .prev").is_hidden()  # a single photo has no slides
     page.keyboard.press("Escape")
     assert box.is_hidden()
     page.click('.card[data-type="carousel"] .media img')  # a real click, through the slider's pointer capture
-    assert page.locator(".lightbox .stage img").get_attribute("src") == "c_1.jpg"
+    assert page.locator(".lightbox .track > .shown").get_attribute("src") == "c_1.jpg"
     assert page.locator(".lightbox .count").inner_text() == "1 / 2"
     page.keyboard.press("ArrowRight")
-    assert page.locator(".lightbox .stage video").get_attribute("src") == "c_2.mp4"
+    assert page.locator(".lightbox .track > .shown").get_attribute("src") == "c_2.mp4"
     page.locator(".lightbox .close").click()
     assert box.is_hidden()
     page.locator('.card[data-type="video"] .expand').dispatch_event("click")
-    assert page.locator(".lightbox .stage video").get_attribute("src") == "v.mp4"
+    assert page.locator(".lightbox .track > .shown").get_attribute("src") == "v.mp4"
     page.locator(".lightbox .close").click()
     page.click(
         '.card[data-type="video"] .media video', position={"x": 10, "y": 10}
@@ -152,18 +152,23 @@ def test_expanded_about_content_starts_below_the_account_row(browser, overview_p
     page.close()
 
 
-def test_lightbox_steps_through_slides_on_swipe(browser, account_page):
+def test_lightbox_slides_along_with_a_swipe(browser, account_page):
     page = browser.new_page()
     page.goto(account_page)
     page.click('.card[data-type="carousel"] .media img')
     assert page.locator(".lightbox .count").inner_text() == "1 / 2"
-    box = page.locator(".lightbox .stage img").bounding_box()
+    track = page.locator(".lightbox .track")
+    assert "transform" in track.evaluate("e => getComputedStyle(e).transition")  # eased like the cards
+    box = page.locator(".lightbox .stage").bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
     page.mouse.move(x, y)
     page.mouse.down()
     page.mouse.move(x - 120, y, steps=6)
+    moved = track.evaluate("e => e.style.transform").replace("+ -", "- ")
+    assert moved == "translateX(calc(0% - 120px))"  # the track follows the pointer
     page.mouse.up()
     assert page.locator(".lightbox .count").inner_text() == "2 / 2"
+    assert track.evaluate("e => e.style.transform") == "translateX(calc(-100% + 0px))"
     page.mouse.move(x - 120, y)
     page.mouse.down()
     page.mouse.move(x, y, steps=6)

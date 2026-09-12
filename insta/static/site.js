@@ -36,18 +36,21 @@ if(h.includes('=')){const q=new URLSearchParams(h);state.topic=q.get('topic')||'
 else if(h){state.topic=h;}
 apply();
 
-// Lightbox: a near-full-screen view of a post's photos and videos, with slide navigation.
+// Lightbox: a near-full-screen view of a post's photos and videos, on a slide track like the cards.
 const box=document.querySelector('.lightbox');
-if(box){const stage=box.querySelector('.stage'),count=box.querySelector('.count');let files=[],i=0;
- const show=()=>{stage.replaceChildren();const f=files[i];
-  const el=f.endsWith('.mp4')?Object.assign(document.createElement('video'),{src:f,controls:true,autoplay:true})
-   :Object.assign(document.createElement('img'),{src:f,alt:''});
-  stage.append(el);count.textContent=files.length>1?`${i+1} / ${files.length}`:'';
-  box.querySelectorAll('.prev,.next').forEach(b=>b.hidden=files.length<2);};
- const open=(card,start)=>{files=[...card.querySelectorAll('.media video,.media img')].map(e=>e.getAttribute('src'));
-  i=start;card.querySelectorAll('video').forEach(v=>v.pause());box.hidden=false;show();};
- const close=()=>{box.hidden=true;stage.replaceChildren();};
- const step=d=>{i=(i+d+files.length)%files.length;show();};
+if(box){const stage=box.querySelector('.stage'),count=box.querySelector('.count');
+ const track=document.createElement('div');track.className='track';stage.append(track);let n=0,i=0,x0=null,dx=0;
+ const place=(px=0)=>track.style.transform=`translateX(calc(${-i*100}% + ${px}px))`;
+ const show=()=>{place();count.textContent=n>1?`${i+1} / ${n}`:'';
+  [...track.children].forEach((el,k)=>{el.classList.toggle('shown',k===i);if(el.tagName==='VIDEO'){k===i?el.play():el.pause();}});};
+ const open=(card,start)=>{const files=[...card.querySelectorAll('.media video,.media img')].map(e=>e.getAttribute('src'));
+  track.replaceChildren(...files.map(f=>f.endsWith('.mp4')?Object.assign(document.createElement('video'),{src:f,controls:true,preload:'metadata'})
+   :Object.assign(document.createElement('img'),{src:f,alt:'',draggable:false})));
+  n=files.length;i=start;card.querySelectorAll('video').forEach(v=>v.pause());
+  box.querySelectorAll('.prev,.next').forEach(b=>b.hidden=n<2);track.classList.add('dragging');box.hidden=false;show();
+  requestAnimationFrame(()=>track.classList.remove('dragging'));};
+ const close=()=>{box.hidden=true;track.replaceChildren();};
+ const step=d=>{i=(i+d+n)%n;show();};
  cards.forEach(c=>{const current=()=>+(c.querySelector('.slides')?.dataset.index||0);
   const shown=()=>c.querySelector('.track')?c.querySelectorAll('.track > *')[current()]:c.querySelector('.media > img,.media > video');
   c.querySelector('.expand').onclick=()=>open(c,current());
@@ -58,11 +61,12 @@ if(box){const stage=box.querySelector('.stage'),count=box.querySelector('.count'
  box.querySelector('.close').onclick=close;box.onclick=e=>{if(e.target===box)close();};
  box.querySelector('.prev').onclick=()=>step(-1);box.querySelector('.next').onclick=()=>step(1);
  addEventListener('keydown',e=>{if(box.hidden)return;
-  if(e.key==='Escape')close();else if(e.key==='ArrowLeft'&&files.length>1)step(-1);else if(e.key==='ArrowRight'&&files.length>1)step(1);});
- // Swipe (touch or mouse) on the shown medium steps through the slides.
- let sx=null;
- stage.addEventListener('pointerdown',e=>{if(e.button)return;sx=e.clientX;stage.setPointerCapture(e.pointerId);});
- stage.addEventListener('pointerup',e=>{if(sx===null)return;const dx=e.clientX-sx;sx=null;
-  if(files.length>1&&Math.abs(dx)>40)step(dx<0?1:-1);});
- stage.addEventListener('pointercancel',()=>{sx=null;});
- stage.addEventListener('dragstart',e=>e.preventDefault());}
+  if(e.key==='Escape')close();else if(e.key==='ArrowLeft'&&n>1)step(-1);else if(e.key==='ArrowRight'&&n>1)step(1);});
+ // Swipe (touch or mouse): the track follows the pointer and snaps to the next slide past a threshold.
+ track.addEventListener('pointerdown',e=>{if(e.button||n<2)return;x0=e.clientX;dx=0;
+  track.classList.add('dragging');track.setPointerCapture(e.pointerId);});
+ track.addEventListener('pointermove',e=>{if(x0===null)return;dx=e.clientX-x0;place(dx);});
+ const end=()=>{if(x0===null)return;x0=null;track.classList.remove('dragging');
+  Math.abs(dx)>60?step(dx<0?1:-1):place();};
+ track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);
+ track.addEventListener('dragstart',e=>e.preventDefault());}
