@@ -32,8 +32,8 @@ classifiers = [
 ]
 dependencies = [
   "jinja2>=3.1",
-    "playwright>=1.50",
-    "requests>=2.32",
+  "playwright>=1.50",
+  "requests>=2.32",
 ]
 
 [project.optional-dependencies]
