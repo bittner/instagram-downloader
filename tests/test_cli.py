@@ -103,3 +103,13 @@ def test_all_rejects_usernames_and_an_empty_site(spies, monkeypatch, tmp_path):
     with pytest.raises(SystemExit):
         cli.main()
     assert "archive" not in spies
+
+
+def test_version_option_prints_the_package_version(spies, monkeypatch, capsys):
+    monkeypatch.setattr(website, "version", lambda: "1.2.3")
+    monkeypatch.setattr("sys.argv", ["insta", "--version"])
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main()
+    assert exit_info.value.code == 0
+    assert capsys.readouterr().out.strip() == "insta 1.2.3"
+    assert "archive" not in spies

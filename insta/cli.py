@@ -19,6 +19,7 @@ def main() -> int:
         description="Download all posts of Instagram accounts, photos and videos, and build a local site.",
     )
     ap.add_argument("usernames", nargs="*", metavar="USERNAME", help="Instagram account(s) to archive")
+    ap.add_argument("--version", action="version", version=f"%(prog)s {website.version() or 'unknown'}")
     ap.add_argument("--full", action="store_true", help="scan the whole profile, not just until known posts")
     ap.add_argument("--max", type=int, default=None, help="stop after N posts (for testing)")
     ap.add_argument("--all", action="store_true", help="update every account already archived in site/")
