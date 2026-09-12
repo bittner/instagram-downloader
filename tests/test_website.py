@@ -60,7 +60,7 @@ def test_profile_adds_about_box_and_topic_filters(site):
     website.build()
     overview = (site / "index.html").read_text()
     account = (site / "alice" / "index.html").read_text()
-    assert "<summary>About @alice</summary><p>About &lt;alice&gt;</p>" in overview
+    assert '<summary>About @alice</summary><div class="body"><p>About &lt;alice&gt;</p>' in overview
     assert 'href="alice/index.html#waste">Waste · 1</a>' in overview
     assert 'data-topic="all">All · 2</button>' in account
     assert 'data-topic="waste">Waste · 1</button>' in account

@@ -50,9 +50,9 @@ footer a{color:#666}
 .account .facts{color:#555;font-size:.85rem;margin-top:.5rem}
 .account .facts a{color:#36c;text-decoration:none}
 .account .header a{text-decoration:none;color:#36c}
-.account details p{white-space:pre-wrap}
-.account details p{flex-basis:100%;line-height:1.5;max-width:70em;margin:.75rem 0 0}
-.account .topics{flex-basis:100%}
+.account details::details-content{flex-basis:100%}  /* the browser-internal box holding the content */
+.account details .body{flex-basis:100%}
+.account details p{white-space:pre-wrap;line-height:1.5;max-width:70em;margin:.75rem 0 0}
 .account .topics a{display:inline-block;font-size:.85rem;border:1px solid #ccc;border-radius:999px;
  padding:.15rem .7rem;margin:.2rem .2rem 0 0;background:#f4f4f4;text-decoration:none}
 .media{position:relative}

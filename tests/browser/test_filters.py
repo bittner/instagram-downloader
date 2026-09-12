@@ -127,3 +127,26 @@ def test_lightbox_enlarges_photos_and_videos_alike(browser, account_page):
     )  # plays, does not enlarge
     assert box.is_hidden()
     page.close()
+
+
+@pytest.fixture
+def overview_page(tmp_path, monkeypatch):
+    monkeypatch.setattr(website, "SITE", tmp_path)
+    (tmp_path / "alice").mkdir()
+    (tmp_path / "alice" / "index.json").write_text(json.dumps(INDEX))
+    (tmp_path / "alice" / "profile.json").write_text(json.dumps({"about": "Short.", "topics": []}))
+    website.build(quiet=True)
+    return (tmp_path / "index.html").as_uri()
+
+
+def test_expanded_about_content_starts_below_the_account_row(browser, overview_page):
+    page = browser.new_page()
+    page.set_viewport_size(
+        {"width": 1400, "height": 600}
+    )  # wide enough for a short text to fit beside the toggle
+    page.goto(overview_page)
+    page.click("summary")
+    summary = page.locator("summary").bounding_box()
+    body = page.locator(".account .body").bounding_box()
+    assert body["y"] >= summary["y"] + summary["height"]
+    page.close()
