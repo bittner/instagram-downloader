@@ -3,7 +3,7 @@
 <header><div class="bar"><b>Instagram archive</b></div></header>
 <main>
 {%- for a in accounts %}
-<div class="account"><a href="{{ a.name }}/index.html"><b>@{{ a.name }}</b> · {{ a.posts }} posts</a>
+<div class="account"><a href="{{ a.name }}/index.html"><b>@{{ a.name }}</b> · {{ a.posts }} post{{ "s" if a.posts != 1 }}</a>
 {%- if a.header_line %}<span class="header">{{ a.header_line }}</span>{% endif -%}
 {% if a.about or a.facts or a.topics %}<details><summary>About @{{ a.name }}</summary><div class="body">
 {%- if a.about %}<p>{{ a.about }}</p>{% endif %}

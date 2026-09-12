@@ -4,7 +4,7 @@
 {%- else %}<img src="{{ file }}" loading="lazy" draggable="false" alt="">{% endif %}
 {%- endmacro %}
 {% block body -%}
-<header><div class="bar"><a href="../index.html">← all accounts</a> · <b>@{{ name }}</b> · {{ posts|length }} posts
+<header><div class="bar"><a href="../index.html">← all accounts</a> · <b>@{{ name }}</b> · {{ posts|length }} post{{ "s" if posts|length != 1 }}
 <span class="types">
 {%- for type, label, count in types %}<button data-type="{{ type }}">{{ label }} · {{ count }}</button>{% endfor -%}
 </span></div>

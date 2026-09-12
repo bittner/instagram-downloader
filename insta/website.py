@@ -138,7 +138,10 @@ def header_line(header: dict) -> Markup:
 def header_facts(header: dict) -> Markup:
     """Format the remaining profile facts for the expandable section: category, counts, links."""
     parts = [html.escape(header["category"])] if header.get("category") else []
-    parts += [f"{header[k]:,} {k}" for k in ("posts", "following") if header.get(k) is not None]
+    if header.get("posts") is not None:
+        parts.append(f"{header['posts']:,} post{'s' if header['posts'] != 1 else ''}")
+    if header.get("following") is not None:
+        parts.append(f"{header['following']:,} following")
     parts += [
         f'<a href="{html.escape(u)}">{html.escape(u.removeprefix("https://").rstrip("/"))}</a>'
         for u in header.get("links", [])

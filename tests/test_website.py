@@ -250,3 +250,13 @@ def test_about_box_appears_without_a_bio_when_there_are_facts_or_topics(site):
     (site / "alice" / "account.json").unlink()
     website.build()
     assert "<summary>" not in (site / "index.html").read_text()  # nothing to show at all
+
+
+def test_post_counts_are_pluralised_properly(site):
+    (site / "alice" / "account.json").write_text(json.dumps(dict(HEADER, posts=1)))
+    (site / "alice" / "index.json").write_text(json.dumps({"new": INDEX["new"]}))
+    website.build()
+    overview = (site / "index.html").read_text()
+    assert "@alice</b> · 1 post</a>" in overview
+    assert "Creator · 1 post · 1 following" in overview
+    assert "· 1 post\n<span" in (site / "alice" / "index.html").read_text()
