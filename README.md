@@ -27,8 +27,7 @@ python -m http.server -d site
 ```
 
 `uvx instagram-offline --all` updates every account already archived in `site/`.
-
-From a checkout, `uv run insta USERNAME` does the same.
+From a checkout, you can use `uv run insta` to execute the setup the same way.
 
 Log in to Instagram in the browser window on the first run.
 
