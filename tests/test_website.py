@@ -239,3 +239,14 @@ def test_account_page_has_a_lightbox_and_enlarge_buttons(site):
     assert '<div class="lightbox" hidden><div class="stage"></div>' in account
     assert "<footer>" not in account
     assert "const box=document.querySelector('.lightbox')" in (site / "site.js").read_text()
+
+
+def test_about_box_appears_without_a_bio_when_there_are_facts_or_topics(site):
+    (site / "alice" / "account.json").write_text(json.dumps(dict(HEADER, biography="")))
+    website.build()
+    overview = (site / "index.html").read_text()
+    assert "<summary>About @alice</summary>" in overview
+    assert '<div class="body"><p class="facts">Creator' in overview  # no empty About paragraph
+    (site / "alice" / "account.json").unlink()
+    website.build()
+    assert "<summary>" not in (site / "index.html").read_text()  # nothing to show at all
