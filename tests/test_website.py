@@ -158,10 +158,13 @@ def test_pages_link_the_copied_stylesheet_and_script(site):
     website.build()
     assert "header.away{transform:translateY(-100%)}" in (site / "site.css").read_text()
     assert "hdr.classList.toggle('away'" in (site / "site.js").read_text()
+    assert (site / "favicon.svg").read_text().startswith("<svg")
     overview = (site / "index.html").read_text()
+    assert '<link rel="icon" href="favicon.svg" type="image/svg+xml">' in overview
     assert '<link rel="stylesheet" href="site.css">' in overview
     assert '<script src="site.js"></script>' in overview
     account = (site / "alice" / "index.html").read_text()
+    assert '<link rel="icon" href="../favicon.svg" type="image/svg+xml">' in account
     assert '<link rel="stylesheet" href="../site.css">' in account
     assert '<script src="../site.js"></script>' in account
 

@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STATIC = (
     "insta/static/site.css",
     "insta/static/site.js",
+    "insta/static/favicon.svg",
     "insta/templates/base.html",
     "insta/templates/overview.html",
     "insta/templates/account.html",

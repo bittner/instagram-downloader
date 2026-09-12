@@ -26,7 +26,7 @@ from insta.topics import classify, compile_topics, hashtag_topics, load_profile
 ROOT = Path.cwd()
 SITE = ROOT / "site"
 STATIC = importlib.resources.files("insta") / "static"
-ASSETS = ("site.css", "site.js")
+ASSETS = ("site.css", "site.js", "favicon.svg")
 TEMPLATES = Environment(
     loader=PackageLoader("insta", "templates"),
     autoescape=select_autoescape(default=True),
