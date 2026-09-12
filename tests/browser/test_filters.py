@@ -150,3 +150,28 @@ def test_expanded_about_content_starts_below_the_account_row(browser, overview_p
     body = page.locator(".account .body").bounding_box()
     assert body["y"] >= summary["y"] + summary["height"]
     page.close()
+
+
+def test_lightbox_steps_through_slides_on_swipe(browser, account_page):
+    page = browser.new_page()
+    page.goto(account_page)
+    page.click('.card[data-type="carousel"] .media img')
+    assert page.locator(".lightbox .count").inner_text() == "1 / 2"
+    box = page.locator(".lightbox .stage img").bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x - 120, y, steps=6)
+    page.mouse.up()
+    assert page.locator(".lightbox .count").inner_text() == "2 / 2"
+    page.mouse.move(x - 120, y)
+    page.mouse.down()
+    page.mouse.move(x, y, steps=6)
+    page.mouse.up()
+    assert page.locator(".lightbox .count").inner_text() == "1 / 2"
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 10, y, steps=2)  # a tap-like movement changes nothing
+    page.mouse.up()
+    assert page.locator(".lightbox .count").inner_text() == "1 / 2"
+    page.close()

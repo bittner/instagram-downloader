@@ -58,4 +58,11 @@ if(box){const stage=box.querySelector('.stage'),count=box.querySelector('.count'
  box.querySelector('.close').onclick=close;box.onclick=e=>{if(e.target===box)close();};
  box.querySelector('.prev').onclick=()=>step(-1);box.querySelector('.next').onclick=()=>step(1);
  addEventListener('keydown',e=>{if(box.hidden)return;
-  if(e.key==='Escape')close();else if(e.key==='ArrowLeft'&&files.length>1)step(-1);else if(e.key==='ArrowRight'&&files.length>1)step(1);});}
+  if(e.key==='Escape')close();else if(e.key==='ArrowLeft'&&files.length>1)step(-1);else if(e.key==='ArrowRight'&&files.length>1)step(1);});
+ // Swipe (touch or mouse) on the shown medium steps through the slides.
+ let sx=null;
+ stage.addEventListener('pointerdown',e=>{if(e.button)return;sx=e.clientX;stage.setPointerCapture(e.pointerId);});
+ stage.addEventListener('pointerup',e=>{if(sx===null)return;const dx=e.clientX-sx;sx=null;
+  if(files.length>1&&Math.abs(dx)>40)step(dx<0?1:-1);});
+ stage.addEventListener('pointercancel',()=>{sx=null;});
+ stage.addEventListener('dragstart',e=>e.preventDefault());}
